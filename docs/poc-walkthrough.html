@@ -802,6 +802,18 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
 <script>
 (() => {
 "use strict";
+const $ = (s, r = document) => r.querySelector(s);
+// The artifact viewer may enforce Trusted Types, which blocks raw innerHTML strings.
+const ttPolicy = (() => {
+  const tt = window.trustedTypes;
+  if (!tt || !tt.createPolicy) return null;
+  for (const name of ["default", "kbhub"]) { try { return tt.createPolicy(name, { createHTML: x => x }); } catch (e) {} }
+  return null;
+})();
+function setHTML(el, str) {
+  try { el.innerHTML = ttPolicy ? ttPolicy.createHTML(str) : str; }
+  catch (e) { el.textContent = String(str).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(); }
+}
 
 /* ------------------------------------------------------------------ */
 /* Component info (shown when a node is clicked)                       */
@@ -1216,7 +1228,6 @@ evidence: dev-lead decision 2026-10-02`) }
 /* ------------------------------------------------------------------ */
 /* Simulation engine                                                   */
 /* ------------------------------------------------------------------ */
-const $ = (s, r = document) => r.querySelector(s);
 const diagram = $("#diagram"), wires = $("#wires"), packet = $("#packet");
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const state = { f: 0, s: 0, playing: false, timer: null, mode: "step" };
@@ -1225,7 +1236,7 @@ const tabs = $("#flowtabs");
 FLOWS.forEach((fl, i) => {
   const b = document.createElement("button");
   b.className = "flowtab"; b.setAttribute("role", "tab"); b.id = "tab-" + fl.id;
-  b.innerHTML = `<b>${fl.id}</b>${fl.name}${fl.proposed ? " <em>proposed</em>" : ""}`;
+setHTML(b, `<b>${fl.id}</b>${fl.name}${fl.proposed ? " <em>proposed</em>" : ""}`);
   b.addEventListener("click", () => { stop(); state.f = i; state.s = 0; render(true); });
   tabs.appendChild(b);
 });
@@ -1242,11 +1253,11 @@ function drawPath(path, animate) {
   wires.setAttribute("viewBox", `0 0 ${d.width} ${d.height}`);
   const pts = path.map(center).filter(Boolean);
   if (pts.length < 2) {
-    wires.innerHTML = "";
+setHTML(wires, "");
     if (pts.length === 1) { packet.style.opacity = 1; packet.getAnimations().forEach(a => a.cancel()); packet.style.transform = `translate(${pts[0].x - 8}px, ${pts[0].y - 8}px)`; }
     return;
   }
-  wires.innerHTML = `<polyline class="wire" points="${pts.map(p => p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ")}"/>`;
+setHTML(wires, `<polyline class="wire" points="${pts.map(p => p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ")}"/>`);
   packet.style.opacity = 1;
   const frames = pts.map(p => ({ transform: `translate(${p.x - 8}px, ${p.y - 8}px)` }));
   packet.getAnimations().forEach(a => a.cancel());
@@ -1257,7 +1268,7 @@ function drawPath(path, animate) {
 }
 
 function renderSample(sample) {
-  const box = $("#c-sample"); box.innerHTML = "";
+  const box = $("#c-sample"); setHTML(box, "");
   if (!sample) return;
   const wrap = document.createElement("div"); wrap.className = "specimen";
   const head = document.createElement("div"); head.className = "specimen-head";
@@ -1267,7 +1278,7 @@ function renderSample(sample) {
   if (sample.kind === "code") {
     const pre = document.createElement("pre"); pre.textContent = sample.body; wrap.appendChild(pre);
   } else {
-    const div = document.createElement("div"); div.className = "html"; div.innerHTML = sample.body; wrap.appendChild(div);
+    const div = document.createElement("div"); div.className = "html"; setHTML(div, sample.body); wrap.appendChild(div);
   }
   box.appendChild(wrap);
 }
@@ -1276,12 +1287,12 @@ function render(animate) {
   state.mode = "step";
   const fl = FLOWS[state.f], st = fl.steps[state.s];
   tabs.querySelectorAll(".flowtab").forEach((t, i) => t.setAttribute("aria-selected", i === state.f ? "true" : "false"));
-  $("#flow-intro").innerHTML = fl.intro;
+setHTML($("#flow-intro"), fl.intro);
   $("#c-step").textContent = `Flow ${fl.id} · Step ${state.s + 1} of ${fl.steps.length}`;
   $("#c-layer").textContent = st.layer;
   $("#c-title").textContent = st.title;
   $("#c-text").textContent = st.text;
-  const why = $("#c-why"); why.innerHTML = st.why || ""; why.hidden = !st.why;
+  const why = $("#c-why"); setHTML(why, st.why || ""); why.hidden = !st.why;
   renderSample(st.sample);
 
   const involved = new Set(fl.steps.flatMap(x => x.path));
@@ -1291,7 +1302,7 @@ function render(animate) {
     n.classList.toggle("involved", involved.has(id));
     n.classList.toggle("active", st.path.includes(id));
   });
-  const dots = $("#dots"); dots.innerHTML = "";
+  const dots = $("#dots"); setHTML(dots, "");
   fl.steps.forEach((_, i) => {
     const d = document.createElement("button");
     d.className = "dot" + (i === state.s ? " on" : i < state.s ? " done" : "");
@@ -1312,7 +1323,7 @@ function showNode(id) {
   $("#c-layer").textContent = n.layer;
   $("#c-title").textContent = n.name;
   $("#c-text").textContent = n.text;
-  const why = $("#c-why"); why.innerHTML = n.why || ""; why.hidden = !n.why;
+  const why = $("#c-why"); setHTML(why, n.why || ""); why.hidden = !n.why;
   const used = FLOWS.filter(f => f.steps.some(s => s.path.includes(id))).map(f => `${f.id} · ${f.name}`);
   renderSample(used.length ? html("used in flows", `<p style="font-size:13px">${used.join("<br>")}</p><p style="font-size:12.5px;color:var(--muted);margin-top:6px">Press Next or Play to return to the walkthrough.</p>`, "") : null);
   diagram.classList.remove("running");
@@ -1426,10 +1437,10 @@ const issuesBox = $("#issues");
 ISSUES.forEach((it, i) => {
   const el = document.createElement("article");
   el.className = "issue"; el.dataset.p = it.p;
-  el.innerHTML = `<div class="issue-pri"><span class="p">${it.p}</span><span>#${String(i + 1).padStart(2, "0")}</span></div>
+  setHTML(el, `<div class="issue-pri"><span class="p">${it.p}</span><span>#${String(i + 1).padStart(2, "0")}</span></div>
   <div class="issue-body"><h4>${it.t}</h4>
   <div class="cols"><div><b>Gap</b>${it.gap}</div><div><b>Recommendation</b>${it.fix}</div></div>
-  <div class="refs">Relates to: ${it.refs}</div></div>`;
+  <div class="refs">Relates to: ${it.refs}</div></div>`);
   issuesBox.appendChild(el);
 });
 $("#issue-filter").addEventListener("click", e => {
@@ -1452,12 +1463,12 @@ const INFRA = [
 let sched = "biz";
 const money = v => "$" + Math.round(v).toLocaleString("en-US");
 function infraTotal() {
-  const tb = $("#infra tbody"); tb.innerHTML = ""; let total = 0;
+  const tb = $("#infra tbody"); setHTML(tb, ""); let total = 0;
   INFRA.forEach(r => {
     const h = r.fixed ? null : (r.gpu && sched === "biz" ? 286 : 730);
     const m = r.fixed ? r.fixed : r.rate * h; total += m;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${r.name}<small>${r.spec}</small></td><td>${r.role}</td><td class="num">${r.fixed ? "—" : r.rate.toFixed(3)}</td><td class="num">${h ?? "—"}</td><td class="num">${money(m)}</td>`;
+setHTML(tr, `<td>${r.name}<small>${r.spec}</small></td><td>${r.role}</td><td class="num">${r.fixed ? "—" : r.rate.toFixed(3)}</td><td class="num">${h == null ? "—" : h}</td><td class="num">${money(m)}</td>`);
     tb.appendChild(tr);
   });
   $("#infra-total").textContent = money(total);
@@ -1519,6 +1530,6 @@ ROWS.forEach(r => {
     else h += `<div></div>`;
   }
 });
-g.innerHTML = h;
+setHTML(g, h);
 })();
 </script>
