@@ -106,7 +106,9 @@ section.block { padding-block: 56px 8px; scroll-margin-top: 56px; }
 .hard span { color: var(--muted); font-size: 14px; }
 
 /* simulation */
-.flowtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.flowpick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; }
+.flowpick-label { font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.flowtabs { display: flex; flex-wrap: wrap; gap: 8px; }
 .flowtab { font: inherit; font-size: 14px; display: flex; gap: 8px; align-items: center; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
 .flowtab b { font-family: var(--f-mono); font-size: 12px; width: 22px; height: 22px; border-radius: 4px; display: grid; place-items: center; background: var(--grey-soft); color: var(--muted); }
 .flowtab:hover { border-color: var(--line-strong); }
@@ -397,10 +399,17 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
   <div class="sec-head">
     <div class="eyebrow">2 · Process simulation</div>
     <h2>Walk through each process, step by step</h2>
-    <p>Pick a flow and press <b>Play</b>, or step with <b>Next</b>. The highlighted path shows which components touch the data. The right panel explains each step and shows a sample of the data at that point. Click any component in the diagram to see what it is and why we chose it. All ticket numbers, sites and customers are illustrative.</p>
+    <p>Choose a flow with the A–E buttons below, then press <b>Play</b>, or step with <b>Next</b>. The highlighted path shows which components touch the data. The right panel explains each step and shows a sample of the data at that point. Click any component in the diagram to see what it is and why we chose it. All ticket numbers, sites and customers are illustrative.</p>
   </div>
 
-  <div class="flowtabs" role="tablist" id="flowtabs" aria-label="Process flows"></div>
+  <div class="flowpick"><span class="flowpick-label">Choose a flow</span>
+  <div class="flowtabs" role="tablist" id="flowtabs" aria-label="Process flows">
+    <button class="flowtab" role="tab" id="tab-A" aria-selected="true"><b>A</b>Daily update</button>
+    <button class="flowtab" role="tab" id="tab-B"><b>B</b>Ask in the portal</button>
+    <button class="flowtab" role="tab" id="tab-C"><b>C</b>Ask from the IDE</button>
+    <button class="flowtab" role="tab" id="tab-D"><b>D</b>Full rebuild</button>
+    <button class="flowtab" role="tab" id="tab-E"><b>E</b>Duplicate check <em>proposed</em></button>
+  </div></div>
   <p class="flow-intro" id="flow-intro"></p>
 
   <div class="sim">
@@ -1234,11 +1243,8 @@ const state = { f: 0, s: 0, playing: false, timer: null, mode: "step" };
 
 const tabs = $("#flowtabs");
 FLOWS.forEach((fl, i) => {
-  const b = document.createElement("button");
-  b.className = "flowtab"; b.setAttribute("role", "tab"); b.id = "tab-" + fl.id;
-setHTML(b, `<b>${fl.id}</b>${fl.name}${fl.proposed ? " <em>proposed</em>" : ""}`);
-  b.addEventListener("click", () => { stop(); state.f = i; state.s = 0; render(true); });
-  tabs.appendChild(b);
+  const b = document.getElementById("tab-" + fl.id);
+  if (b) b.addEventListener("click", () => { stop(); state.f = i; state.s = 0; render(true); });
 });
 
 function nodeEl(id) { return diagram.querySelector(`[data-node="${id}"]`); }
