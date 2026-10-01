@@ -1,0 +1,1524 @@
+<title>Shopfloor KB Hub POC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: control-room sheet. Sticky section nav, one reading column, the simulation breaks out to a two-pane console (diagram | narrative). */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --ink: #15212c;
+  --muted: #566573;
+  --line: #d3dae1;
+  --line-strong: #a9b5c1;
+  --accent: #b86e00;          /* signal amber, text-safe */
+  --accent-fill: #f2a516;     /* signal amber, fills */
+  --accent-soft: #fdf1da;
+  --blue: #1d64a3;
+  --blue-soft: #e3eef8;
+  --ok: #2c7a3f;  --ok-soft: #e2f2e6;
+  --warn: #9a6200; --warn-soft: #fbefd6;
+  --bad: #a43b3b; --bad-soft: #f8e4e4;
+  --grey: #6b7783; --grey-soft: #eceff2;
+  --code-bg: #f3f5f8;
+  --shadow: 0 1px 2px rgba(21,33,44,.06), 0 4px 16px rgba(21,33,44,.06);
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e151c; --surface: #151f29; --surface-2: #1a2632; --ink: #e4eaf0; --muted: #93a2b1;
+    --line: #2a3744; --line-strong: #44576a; --accent: #f5ad2e; --accent-fill: #f2a516; --accent-soft: #3a2c10;
+    --blue: #64aee8; --blue-soft: #16304a; --ok: #6cc884; --ok-soft: #173826; --warn: #e8b04f; --warn-soft: #3b2d12;
+    --bad: #ec7d7d; --bad-soft: #3d1f1f; --grey: #9aa7b3; --grey-soft: #222d38; --code-bg: #101920;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e151c; --surface: #151f29; --surface-2: #1a2632; --ink: #e4eaf0; --muted: #93a2b1;
+  --line: #2a3744; --line-strong: #44576a; --accent: #f5ad2e; --accent-fill: #f2a516; --accent-soft: #3a2c10;
+  --blue: #64aee8; --blue-soft: #16304a; --ok: #6cc884; --ok-soft: #173826; --warn: #e8b04f; --warn-soft: #3b2d12;
+  --bad: #ec7d7d; --bad-soft: #3d1f1f; --grey: #9aa7b3; --grey-soft: #222d38; --code-bg: #101920;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+h1, h2, h3, h4 { font-family: var(--f-display); line-height: 1.15; text-wrap: balance; margin: 0; letter-spacing: .005em; }
+h2 { font-size: clamp(26px, 3.2vw, 34px); font-weight: 700; }
+h3 { font-size: 21px; font-weight: 600; }
+h4 { font-size: 17px; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--blue); }
+code, .mono { font-family: var(--f-mono); font-size: .88em; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+
+/* nav */
+.topnav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.topnav-inner { max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 16px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 17px; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.brand i { width: 10px; height: 10px; background: var(--accent-fill); border-radius: 2px; display: inline-block; }
+.topnav nav { display: flex; gap: 4px; }
+.topnav nav a { color: var(--muted); text-decoration: none; font-size: 13.5px; padding: 4px 9px; border-radius: 5px; white-space: nowrap; }
+.topnav nav a:hover { color: var(--ink); background: var(--surface); }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 16px; }
+section.block { padding-block: 56px 8px; scroll-margin-top: 56px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+.lede { font-size: 17px; color: var(--muted); max-width: 70ch; margin-top: 12px; }
+.sec-head { display: grid; gap: 4px; margin-bottom: 24px; }
+.sec-head p { color: var(--muted); max-width: 72ch; }
+
+/* hero */
+.hero { padding-block: 40px 8px; display: grid; gap: 28px; }
+.hero h1 { font-size: clamp(38px, 6vw, 62px); font-weight: 700; letter-spacing: -.005em; }
+.hero h1 span { color: var(--accent); }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.fact { padding: 14px 16px; border-left: 1px solid var(--line); }
+.fact:first-child { border-left: 0; }
+.fact b { display: block; font-family: var(--f-display); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: 13px; }
+@media (max-width: 760px) { .facts { grid-template-columns: repeat(2, minmax(0,1fr)); } .fact:nth-child(3) { border-left: 0; } .fact:nth-child(n+3) { border-top: 1px solid var(--line); } }
+
+.ask { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.ask > div { padding: 18px 20px; display: grid; gap: 10px; align-content: start; }
+.ask > div + div { border-left: 1px solid var(--line); background: var(--surface-2); }
+.ask ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.ask .big { font-family: var(--f-display); font-size: 22px; font-weight: 600; }
+@media (max-width: 760px) { .ask { grid-template-columns: 1fr; } .ask > div + div { border-left: 0; border-top: 1px solid var(--line); } }
+
+/* understanding */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+.panel-plain { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.outcomes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: o; }
+.outcomes li { display: grid; grid-template-columns: 30px minmax(0,1fr); gap: 10px; align-items: baseline; }
+.outcomes li::before { counter-increment: o; content: counter(o); font-family: var(--f-mono); font-size: 12px; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); }
+.hard { display: grid; gap: 10px; }
+.hard div { border-left: 3px solid var(--accent-fill); padding: 2px 0 2px 12px; }
+.hard b { display: block; }
+.hard span { color: var(--muted); font-size: 14px; }
+
+/* simulation */
+.flowtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.flowtab { font: inherit; font-size: 14px; display: flex; gap: 8px; align-items: center; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+.flowtab b { font-family: var(--f-mono); font-size: 12px; width: 22px; height: 22px; border-radius: 4px; display: grid; place-items: center; background: var(--grey-soft); color: var(--muted); }
+.flowtab:hover { border-color: var(--line-strong); }
+.flowtab[aria-selected="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.flowtab[aria-selected="true"] b { background: var(--accent-fill); color: #1b1300; }
+.flowtab em { font-style: normal; font-size: 11px; font-family: var(--f-mono); color: var(--accent); }
+
+.sim { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 980px) { .sim { grid-template-columns: minmax(0, 1fr); } }
+
+.diagram { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-width: 0; }
+.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.wire { fill: none; stroke: var(--accent-fill); stroke-width: 2.5; stroke-dasharray: 6 6; stroke-linecap: round; stroke-linejoin: round; animation: flow 0.9s linear infinite; opacity: .9; }
+@keyframes flow { to { stroke-dashoffset: -12; } }
+.packet { position: absolute; left: 0; top: 0; width: 16px; height: 16px; border-radius: 50%; background: var(--accent-fill); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-fill) 30%, transparent), 0 0 14px var(--accent-fill); z-index: 4; pointer-events: none; opacity: 0; }
+.layer { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: center; padding: 9px 12px; border-top: 1px solid var(--line); position: relative; z-index: 3; }
+.layer:first-of-type { border-top: 0; }
+.layer-label { display: grid; gap: 0; }
+.layer-label b { font-family: var(--f-mono); font-size: 11.5px; color: var(--accent); letter-spacing: .04em; }
+.layer-label span { font-family: var(--f-display); font-weight: 600; font-size: 15px; line-height: 1.15; }
+.layer.src { background: var(--surface-2); }
+.layer.users { background: var(--surface-2); }
+.nodes { display: flex; flex-wrap: wrap; gap: 6px; }
+.node { font: inherit; font-size: 12.5px; line-height: 1.25; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 6px 9px; cursor: pointer; transition: opacity .25s, border-color .25s, background .25s, box-shadow .25s; text-align: left; }
+.node:hover { border-color: var(--line-strong); }
+.node small { display: block; color: var(--muted); font-size: 10.5px; font-family: var(--f-mono); }
+.diagram.running .node { opacity: .38; }
+.diagram.running .node.involved { opacity: 1; border-color: var(--line-strong); }
+.diagram .node.active { opacity: 1; background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-fill) 35%, transparent); }
+.node.existing { border-style: dashed; }
+.legend-row { display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); position: relative; z-index: 3; background: var(--surface); }
+.legend-row span { display: inline-flex; gap: 6px; align-items: center; }
+.sw { width: 14px; height: 10px; border-radius: 2px; border: 1px solid var(--line-strong); display: inline-block; }
+.sw.dash { border-style: dashed; }
+.sw.act { background: var(--accent-soft); border-color: var(--accent); }
+
+.console { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; position: sticky; top: 64px; box-shadow: var(--shadow); }
+@media (max-width: 980px) { .console { position: static; } }
+.console-head { padding: 14px 16px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.console-meta { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.tag { font-family: var(--f-mono); font-size: 11px; padding: 1px 7px; border-radius: 3px; background: var(--grey-soft); color: var(--muted); white-space: nowrap; }
+.tag.l { background: var(--accent-soft); color: var(--accent); }
+.console-body { padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
+.console-body p { max-width: 68ch; }
+.why { font-size: 13.5px; color: var(--muted); border-left: 2px solid var(--blue); padding-left: 10px; }
+.why b { color: var(--ink); font-weight: 600; }
+.specimen { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; min-width: 0; }
+.specimen-head { display: flex; justify-content: space-between; gap: 8px; font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); background: var(--surface-2); padding: 5px 10px; border-bottom: 1px solid var(--line); }
+.specimen pre { margin: 0; padding: 10px 12px; background: var(--code-bg); font-family: var(--f-mono); font-size: 12px; line-height: 1.55; max-height: 330px; overflow: auto; white-space: pre; }
+.specimen .html { padding: 12px; max-height: 360px; overflow: auto; font-size: 13.5px; background: var(--surface); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); }
+.btn { font: inherit; font-size: 13.5px; font-weight: 500; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); padding: 6px 12px; border-radius: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary:hover { opacity: .9; }
+.btn:disabled { opacity: .45; cursor: default; }
+.controls select { font: inherit; font-size: 13px; padding: 5px 6px; border-radius: 5px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.dots { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 16px 14px; }
+.dot { width: 22px; height: 6px; border-radius: 3px; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+.dot.done { background: var(--line-strong); }
+.dot.on { background: var(--accent-fill); }
+.flow-intro { font-size: 14px; color: var(--muted); margin-bottom: 14px; max-width: 90ch; }
+.flow-intro b { color: var(--ink); }
+
+/* inner sample styles */
+.mini { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.mini th, .mini td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.mini th { font-family: var(--f-mono); font-size: 11px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
+.mini td { font-variant-numeric: tabular-nums; }
+.conf { font-family: var(--f-mono); font-size: 10.5px; padding: 1px 6px; border-radius: 3px; white-space: nowrap; font-weight: 500; }
+.conf.confirmed { background: var(--ok-soft); color: var(--ok); }
+.conf.strong { background: var(--blue-soft); color: var(--blue); }
+.conf.inferred { background: var(--warn-soft); color: var(--warn); }
+.conf.unlinked { background: var(--grey-soft); color: var(--grey); }
+.conf.human { background: var(--ok-soft); color: var(--ok); outline: 1px solid var(--ok); }
+.answer { display: grid; gap: 8px; }
+.answer .q { font-weight: 600; }
+.cite { font-family: var(--f-mono); font-size: 10.5px; color: var(--blue); background: var(--blue-soft); padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+.srcs { display: grid; gap: 4px; font-size: 12px; font-family: var(--f-mono); color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
+.note-box { background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); padding: 8px 10px; border-radius: 5px; font-size: 13px; }
+
+/* lineage */
+.diagram-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.diagram-scroll svg { display: block; min-width: 860px; width: 100%; height: auto; }
+.svg-ink { fill: var(--ink); }
+.svg-muted { fill: var(--muted); }
+.svg-box { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1; }
+.svg-box.new { fill: var(--accent-soft); stroke: var(--accent); stroke-dasharray: 4 3; }
+.svg-band { fill: var(--surface-2); }
+.e-confirmed { stroke: var(--ok); }
+.e-strong { stroke: var(--blue); }
+.e-inferred { stroke: var(--warn); stroke-dasharray: 6 4; }
+.e-similar { stroke: var(--grey); stroke-dasharray: 2 4; }
+.edge { fill: none; stroke-width: 2; }
+.tiers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+@media (max-width: 860px) { .tiers { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 480px) { .tiers { grid-template-columns: 1fr; } }
+.tier { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 6px; align-content: start; }
+.tier p { font-size: 13.5px; color: var(--muted); }
+.tier .conf { justify-self: start; }
+.tier .use { font-size: 13px; color: var(--ink); }
+
+/* review */
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.chip-btn { font: inherit; font-size: 13px; padding: 4px 11px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.chip-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.strengths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 26px; }
+@media (max-width: 860px) { .strengths { grid-template-columns: 1fr; } }
+.strengths div { font-size: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.strengths b { display: block; font-size: 13px; color: var(--ok); font-family: var(--f-mono); font-weight: 500; }
+.issues { display: grid; gap: 10px; }
+.issue { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: 92px minmax(0, 1fr); overflow: hidden; }
+.issue-pri { padding: 14px 10px; display: grid; align-content: start; gap: 6px; border-right: 1px solid var(--line); font-family: var(--f-mono); font-size: 11px; }
+.issue-pri .p { font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.issue[data-p="high"] .issue-pri { background: var(--bad-soft); color: var(--bad); }
+.issue[data-p="medium"] .issue-pri { background: var(--warn-soft); color: var(--warn); }
+.issue[data-p="low"] .issue-pri { background: var(--grey-soft); color: var(--grey); }
+.issue-body { padding: 14px 16px; display: grid; gap: 8px; min-width: 0; }
+.issue-body .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; font-size: 14px; }
+.issue-body .cols b { display: block; font-size: 11.5px; font-family: var(--f-mono); color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.issue-body .refs { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+@media (max-width: 680px) { .issue { grid-template-columns: 1fr; } .issue-pri { border-right: 0; border-bottom: 1px solid var(--line); grid-auto-flow: column; justify-content: start; gap: 12px; padding: 8px 14px; } .issue-body .cols { grid-template-columns: 1fr; } }
+
+/* BOM / tables */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table.t { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.t th, table.t td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.t th { font-family: var(--f-mono); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--surface-2); white-space: nowrap; }
+table.t td.num, table.t th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.t tfoot td { font-weight: 600; border-bottom: 0; background: var(--surface-2); }
+table.t tr:last-child td { border-bottom: 0; }
+table.t td small { color: var(--muted); display: block; font-size: 12px; }
+.bom-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 980px) { .bom-grid { grid-template-columns: minmax(0, 1fr); } }
+.calc { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
+.calc-fields { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px 12px; }
+.calc label { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.calc input, .calc select { font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface-2); color: var(--ink); width: 100%; font-variant-numeric: tabular-nums; }
+.calc-out { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); border-top: 1px solid var(--line); padding-top: 12px; gap: 8px; }
+.calc-out div { display: grid; }
+.calc-out b { font-family: var(--f-display); font-size: 24px; font-variant-numeric: tabular-nums; }
+.calc-out span { font-size: 12px; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+.seg button { font: inherit; font-size: 13px; border: 0; background: var(--surface); color: var(--ink); padding: 5px 11px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.budget { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); overflow: hidden; margin-top: 18px; }
+.budget div { padding: 12px 14px; border-left: 1px solid var(--line); display: grid; gap: 2px; }
+.budget div:first-child { border-left: 0; }
+.budget b { font-family: var(--f-display); font-size: 24px; font-variant-numeric: tabular-nums; }
+.budget span { font-size: 12.5px; color: var(--muted); }
+.budget .total { background: var(--accent-soft); }
+.budget .total b { color: var(--accent); }
+@media (max-width: 760px) { .budget { grid-template-columns: repeat(2, minmax(0,1fr)); } .budget div:nth-child(3) { border-left: 0; } .budget div:nth-child(n+3) { border-top: 1px solid var(--line); } }
+.fine { font-size: 12.5px; color: var(--muted); margin-top: 10px; max-width: 95ch; }
+.sub-h { margin: 34px 0 12px; display: grid; gap: 4px; }
+.sub-h p { color: var(--muted); font-size: 14px; max-width: 80ch; }
+
+/* plan */
+.gantt { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.gantt-grid { display: grid; grid-template-columns: 210px repeat(14, minmax(34px, 1fr)); min-width: 760px; font-size: 13px; }
+.gantt-grid > div { border-bottom: 1px solid var(--line); padding: 8px 6px; }
+.g-wk { font-family: var(--f-mono); font-size: 11px; color: var(--muted); text-align: center; background: var(--surface-2); }
+.g-name { font-weight: 500; padding-left: 12px !important; background: var(--surface); position: sticky; left: 0; z-index: 1; }
+.g-name small { display: block; color: var(--muted); font-weight: 400; font-size: 11.5px; }
+.g-bar { padding: 8px 0 !important; display: flex; align-items: center; }
+.g-bar i { height: 14px; width: 100%; background: var(--blue); opacity: .85; display: block; }
+.g-bar.first i { border-radius: 3px 0 0 3px; } .g-bar.last i { border-radius: 0 3px 3px 0; } .g-bar.first.last i { border-radius: 3px; }
+.g-bar.ai i { background: var(--accent-fill); }
+.g-bar.dec i { background: var(--ok); }
+.g-bar { position: relative; }
+.g-bar .gd { position: absolute; right: -6px; top: 50%; width: 12px; height: 12px; margin-top: -6px; transform: rotate(45deg); background: var(--ink); border: 2px solid var(--surface); z-index: 1; }
+.gates { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 18px; }
+@media (max-width: 860px) { .gates { grid-template-columns: 1fr; } }
+.gate { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.gate h4 { display: flex; gap: 8px; align-items: center; }
+.gate h4 i { width: 10px; height: 10px; transform: rotate(45deg); background: var(--ink); display: inline-block; flex: none; }
+.gate ul { margin: 0; padding-left: 18px; font-size: 14px; display: grid; gap: 3px; }
+.gate .when { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+.decisions { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; counter-reset: d; }
+.decisions li { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px 10px 46px; position: relative; font-size: 14.5px; }
+.decisions li::before { counter-increment: d; content: "D" counter(d); position: absolute; left: 10px; top: 10px; font-family: var(--f-mono); font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 3px; padding: 1px 5px; }
+.decisions li span { display: block; color: var(--muted); font-size: 13px; }
+
+.qs { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px 18px; }
+@media (max-width: 860px) { .qs { grid-template-columns: 1fr; } }
+.qs div { display: grid; grid-template-columns: 70px minmax(0,1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.qs div span { font-family: var(--f-mono); font-size: 11px; color: var(--muted); padding-top: 3px; }
+.qs div em { font-style: normal; font-family: var(--f-mono); font-size: 10.5px; color: var(--accent); background: var(--accent-soft); padding: 0 4px; border-radius: 3px; margin-left: 4px; }
+
+footer { padding-block: 48px 40px; color: var(--muted); font-size: 13px; }
+footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 4px; }
+
+@media (prefers-reduced-motion: reduce) { .wire { animation: none; } .node { transition: none; } }
+</style>
+
+<header class="topnav">
+  <div class="topnav-inner">
+    <div class="brand"><i></i>KB Hub POC</div>
+    <nav aria-label="Sections">
+      <a href="#summary">Summary</a>
+      <a href="#understanding">Requirement</a>
+      <a href="#simulation">Simulation</a>
+      <a href="#linking">Linking</a>
+      <a href="#review">Review</a>
+      <a href="#bom">Hardware &amp; cost</a>
+      <a href="#plan">Plan</a>
+      <a href="#questions">Open questions</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ================= SUMMARY ================= -->
+<section class="wrap hero" id="summary">
+  <div>
+    <div class="eyebrow">POC proposal · for technical review and approval · 1 Oct 2026</div>
+    <h1>Shopfloor <span>KB Hub</span></h1>
+    <p class="lede">One searchable knowledge base that connects every FlexPM change request to the code that implemented it, across every site. Engineers can find a function, see why it was built, see where else it runs, and catch duplicates before they are built again. Everything runs on self-hosted, open-weight software that can move from rented AWS servers to company hardware.</p>
+  </div>
+  <div class="facts" role="list">
+    <div class="fact" role="listitem"><b>20,000+</b><span>FlexPM CR tickets, ~200 new per year</span></div>
+    <div class="fact" role="listitem"><b>~46 GB</b><span>raw attachments (20k × ~2.3 MB)</span></div>
+    <div class="fact" role="listitem"><b>1000s</b><span>on-prem shopfloor instances, Asia + Americas</span></div>
+    <div class="fact" role="listitem"><b>20+ yrs</b><span>of history; many original authors have left</span></div>
+  </div>
+  <div class="ask">
+    <div>
+      <div class="eyebrow">What this POC proves in 14 weeks</div>
+      <ul>
+        <li>We can link CRs to code automatically with a measured, labelled confidence.</li>
+        <li>An LLM can write accurate knowledge cards, checked by domain experts.</li>
+        <li>Search and AI answers beat today's manual hunting on 100 real engineer questions.</li>
+        <li>The real cost of a full 20,000-ticket backfill, measured on 300 pilot tickets instead of guessed.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="eyebrow">What we ask for</div>
+      <div class="big" id="ask-budget">≈ USD 11–16k AWS for the POC</div>
+      <ul>
+        <li>~5 FTE for 14 weeks plus 3 domain reviewers at ~10%.</li>
+        <li>Rented EC2 only: 2 CPU servers, 2 GPU servers, disks. No managed cloud services.</li>
+        <li>Approval to copy FlexPM + Azure DevOps data into an AWS region (or use a company server instead).</li>
+        <li>Five decisions, listed in <a href="#plan">the plan</a>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= UNDERSTANDING ================= -->
+<section class="wrap block" id="understanding">
+  <div class="sec-head">
+    <div class="eyebrow">1 · My understanding of the requirement</div>
+    <h2>Knowledge exists, but it is split across two systems and lost people</h2>
+    <p>Restated in my own words so we can confirm we mean the same thing before any code is written.</p>
+  </div>
+  <div class="two">
+    <div class="panel-plain">
+      <h3>The problem</h3>
+      <p><b>FlexPM</b> holds the <i>why</i>: CR tickets, revisions like <code>121648-02</code>, specs, slides, customer drafts and edit history. <b>Azure DevOps</b> holds the <i>how</i>: repos, PRs, commits. The link between them is complete only for newer repos named <code>&lt;Region&gt;-&lt;Customer&gt;-FLEXPM&lt;Task&gt;-&lt;Feature&gt;</code>. Older code has partial or no links, and code is often copied to other sites with no new CR at all.</p>
+      <p>The result: engineers can't find existing functions, can't explain old code after its author leaves, and build the same thing twice.</p>
+      <h3>What engineers must be able to do</h3>
+      <ol class="outcomes">
+        <li><span><b>Find</b> a function, spec or requirement fast, by keyword, ID or code symbol.</span></li>
+        <li><span><b>Understand</b> what it does and <b>why</b>, as the requirement stood at the time it was built.</span></li>
+        <li><span><b>Locate</b> every other site, project and version that has it.</span></li>
+        <li><span><b>Detect duplicates</b> before building again.</span></li>
+        <li><span><b>Trace</b> both ways: requirement → code and code → requirement.</span></li>
+      </ol>
+    </div>
+    <div class="panel-plain">
+      <h3>What makes this hard</h3>
+      <div class="hard">
+        <div><b>Incomplete linkage</b><span>Only part of the code is linked to a CR. The system must infer the rest and say clearly that it is inferred (N4, D7).</span></div>
+        <div><b>Invisible copies</b><span>Plug-and-play reuse leaves no trace in FlexPM. It can only be found by comparing code itself (F7, clone detection).</span></div>
+        <div><b>"As it was" answers</b><span>The requirement and code at implementation time, not today's version. Needs commit-level links and ticket edit history (F6, D8).</span></div>
+        <div><b>Complete lists</b><span>"Which sites have X?" needs every site, not the top 5 search hits. Vector search alone can't do this, so a link database answers it (F8, D5).</span></div>
+        <div><b>Self-hosted only</b><span>No managed AI or search services. Open-weight models on our own GPUs, portable to company servers (N1, N2).</span></div>
+        <div><b>Trust</b><span>Every AI statement must point to a ticket, file, line range or commit (N3). Experts review low-confidence items (F10).</span></div>
+      </div>
+      <p class="why"><b>Core idea:</b> one <i>knowledge card</i> per task revision merges the CR requirement with the linked code logic. Cards are the first thing search and the agent read. Real code and documents stay indexed underneath, for exact detail and verification.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SIMULATION ================= -->
+<section class="wrap block" id="simulation">
+  <div class="sec-head">
+    <div class="eyebrow">2 · Process simulation</div>
+    <h2>Walk through each process, step by step</h2>
+    <p>Pick a flow and press <b>Play</b>, or step with <b>Next</b>. The highlighted path shows which components touch the data. The right panel explains each step and shows a sample of the data at that point. Click any component in the diagram to see what it is and why we chose it. All ticket numbers, sites and customers are illustrative.</p>
+  </div>
+
+  <div class="flowtabs" role="tablist" id="flowtabs" aria-label="Process flows"></div>
+  <p class="flow-intro" id="flow-intro"></p>
+
+  <div class="sim">
+    <div class="diagram" id="diagram">
+      <svg class="wires" id="wires" aria-hidden="true"></svg>
+      <div class="packet" id="packet" aria-hidden="true"></div>
+
+      <div class="layer src"><div class="layer-label"><b>SOURCES</b><span>Existing systems</span></div>
+        <div class="nodes">
+          <button class="node existing" data-node="flexpm">FlexPM<small>CR tickets</small></button>
+          <button class="node existing" data-node="ado">Azure DevOps<small>repos · PRs</small></button>
+          <button class="node existing" data-node="legacy">Legacy code<small>TFVC · shares</small></button>
+        </div></div>
+      <div class="layer"><div class="layer-label"><b>L0</b><span>Ingestion</span></div>
+        <div class="nodes">
+          <button class="node existing" data-node="downloader">FlexPM Terminal<small>existing downloader</small></button>
+          <button class="node" data-node="mirror">Git mirror<small>bare clones</small></button>
+          <button class="node" data-node="manifest">Run manifest<small>new · edited · deleted</small></button>
+        </div></div>
+      <div class="layer"><div class="layer-label"><b>L1</b><span>Normalize</span></div>
+        <div class="nodes">
+          <button class="node" data-node="hash">Hash check<small>SHA-256</small></button>
+          <button class="node" data-node="docmd">Doc → Markdown<small>Docling</small></button>
+          <button class="node" data-node="ocr">OCR<small>PaddleOCR</small></button>
+          <button class="node" data-node="codeparse">Code parser<small>tree-sitter · ScriptDom</small></button>
+        </div></div>
+      <div class="layer"><div class="layer-label"><b>L2</b><span>Knowledge cards</span></div>
+        <div class="nodes">
+          <button class="node" data-node="linker">CR ↔ code linker<small>confidence tiers</small></button>
+          <button class="node" data-node="clone">Clone detector<small>AST hash · MinHash</small></button>
+          <button class="node" data-node="cardgen">Card generator<small>LLM + template</small></button>
+          <button class="node" data-node="cards">Card store<small>Markdown, versioned</small></button>
+          <button class="node" data-node="review">Review queue<small>expert checks</small></button>
+        </div></div>
+      <div class="layer"><div class="layer-label"><b>L3</b><span>Knowledge index</span></div>
+        <div class="nodes">
+          <button class="node" data-node="linkdb">Link DB<small>PostgreSQL</small></button>
+          <button class="node" data-node="search">Search index<small>keyword + vector</small></button>
+          <button class="node" data-node="embed">Embed + rerank<small>BGE-M3</small></button>
+          <button class="node" data-node="zoekt">Code search<small>Zoekt</small></button>
+          <button class="node" data-node="indexpages">Index pages<small>generated</small></button>
+        </div></div>
+      <div class="layer"><div class="layer-label"><b>L4</b><span>Knowledge views</span></div>
+        <div class="nodes">
+          <button class="node" data-node="wiki">Wiki pages<small>ticket · family · site</small></button>
+          <button class="node" data-node="package">Ticket package<small>zip download</small></button>
+          <button class="node" data-node="similar">Similar tickets<small>duplicate finder</small></button>
+        </div></div>
+      <div class="layer"><div class="layer-label"><b>L5</b><span>Agent &amp; services</span></div>
+        <div class="nodes">
+          <button class="node" data-node="agent">Agent service<small>tools · REST</small></button>
+          <button class="node" data-node="gateway">LLM gateway<small>LiteLLM</small></button>
+          <button class="node" data-node="llm">LLM<small>vLLM, open-weight</small></button>
+          <button class="node" data-node="mcp">MCP server<small>for AI clients</small></button>
+          <button class="node" data-node="trace">Tracing &amp; eval<small>Langfuse</small></button>
+        </div></div>
+      <div class="layer users"><div class="layer-label"><b>L6</b><span>Clients &amp; people</span></div>
+        <div class="nodes">
+          <button class="node" data-node="portal">Web portal<small>Search · Ask · Browse</small></button>
+          <button class="node" data-node="ide">IDE client<small>local tools</small></button>
+          <button class="node" data-node="user">Engineer</button>
+          <button class="node" data-node="expert">Domain expert</button>
+        </div></div>
+      <div class="legend-row">
+        <span><i class="sw dash"></i>Already exists</span>
+        <span><i class="sw"></i>New in POC</span>
+        <span><i class="sw act"></i>Active in this step</span>
+      </div>
+    </div>
+
+    <div class="console" id="console" aria-live="polite">
+      <div class="console-head">
+        <div class="console-meta"><span id="c-step">Step 1 of 12</span><span id="c-layer" class="tag l">L0</span></div>
+        <h3 id="c-title">—</h3>
+      </div>
+      <div class="console-body">
+        <p id="c-text"></p>
+        <p class="why" id="c-why"></p>
+        <div id="c-sample"></div>
+      </div>
+      <div class="dots" id="dots" aria-label="Steps"></div>
+      <div class="controls">
+        <button class="btn" id="b-prev" aria-label="Previous step">◀ Prev</button>
+        <button class="btn primary" id="b-play">▶ Play</button>
+        <button class="btn" id="b-next" aria-label="Next step">Next ▶</button>
+        <button class="btn" id="b-restart">Restart</button>
+        <label style="font-size:12.5px;color:var(--muted);display:flex;gap:6px;align-items:center">Speed
+          <select id="speed"><option value="11000">Slow</option><option value="7500" selected>Normal</option><option value="4500">Fast</option></select>
+        </label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= LINKING ================= -->
+<section class="wrap block" id="linking">
+  <div class="sec-head">
+    <div class="eyebrow">3 · How CRs and code get connected</div>
+    <h2>Every link carries its evidence and a confidence level</h2>
+    <p>Historical linkage is messy, so we never present a guess as fact. Each link records how we know it. The example below shows one function's real-world life: built, revised, copied without a CR, and rebuilt independently at another site.</p>
+  </div>
+  <div class="tiers">
+    <div class="tier"><span class="conf confirmed">CONFIRMED</span><p>Repo name contains <code>FLEXPM&lt;id&gt;</code>, or a PR / work item links the CR.</p><div class="use">Shown as fact.</div></div>
+    <div class="tier"><span class="conf strong">STRONG</span><p>CR number in a commit message, branch name or code comment. Also: an expert confirmed an inferred link.</p><div class="use">Shown, marked strong.</div></div>
+    <div class="tier"><span class="conf inferred">INFERRED</span><p>LLM compares CR text with the code change, using time, developer and files as hints. Or clone detection finds a copy.</p><div class="use">Marked inferred; sampled weekly for review.</div></div>
+    <div class="tier"><span class="conf unlinked">UNLINKED</span><p>No evidence found on either side.</p><div class="use">Recorded as a knowledge gap, still gets a card.</div></div>
+  </div>
+  <div class="diagram-scroll">
+    <svg viewBox="0 0 980 330" role="img" aria-label="Lineage of the label reprint authorization function across sites">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="svg-muted"/></marker>
+      </defs>
+      <rect x="0" y="0" width="980" height="28" class="svg-band"/>
+      <text x="20" y="19" class="svg-muted" font-family="IBM Plex Mono, monospace" font-size="11">2019</text>
+      <text x="250" y="19" class="svg-muted" font-family="IBM Plex Mono, monospace" font-size="11">2021</text>
+      <text x="500" y="19" class="svg-muted" font-family="IBM Plex Mono, monospace" font-size="11">2022</text>
+      <text x="740" y="19" class="svg-muted" font-family="IBM Plex Mono, monospace" font-size="11">2023 – 2026</text>
+
+      <!-- CR 121648-01 -->
+      <rect x="20" y="52" width="200" height="74" rx="6" class="svg-box"/>
+      <text x="32" y="74" class="svg-ink" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600">CR 121648-01</text>
+      <text x="32" y="93" class="svg-ink" font-family="IBM Plex Sans, sans-serif" font-size="12">Reprint needs supervisor badge</text>
+      <text x="32" y="111" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11.5">Site PEN · repo FLEXPM121648</text>
+
+      <!-- CR 121648-02 -->
+      <rect x="250" y="52" width="210" height="74" rx="6" class="svg-box"/>
+      <text x="262" y="74" class="svg-ink" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600">CR 121648-02</text>
+      <text x="262" y="93" class="svg-ink" font-family="IBM Plex Sans, sans-serif" font-size="12">+ max 2 reprints, audit log</text>
+      <text x="262" y="111" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11.5">Sites PEN, SZH · commit 7f3c9e2</text>
+
+      <!-- copy -->
+      <rect x="500" y="52" width="210" height="74" rx="6" class="svg-box"/>
+      <text x="512" y="74" class="svg-ink" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600">No CR · plug-and-play</text>
+      <text x="512" y="93" class="svg-ink" font-family="IBM Plex Sans, sans-serif" font-size="12">Copy, limit changed to 5</text>
+      <text x="512" y="111" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11.5">Site GDL · AMER-HALCYON-ShopfloorExt</text>
+
+      <!-- independent -->
+      <rect x="500" y="196" width="210" height="74" rx="6" class="svg-box"/>
+      <text x="512" y="218" class="svg-ink" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600">CR 133902-01</text>
+      <text x="512" y="237" class="svg-ink" font-family="IBM Plex Sans, sans-serif" font-size="12">Reprint approval workflow</text>
+      <text x="512" y="255" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11.5">Site AUS · built from scratch</text>
+
+      <!-- new CR -->
+      <rect x="750" y="196" width="210" height="74" rx="6" class="svg-box new"/>
+      <text x="762" y="218" class="svg-ink" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600">CR 134412-01 (new)</text>
+      <text x="762" y="237" class="svg-ink" font-family="IBM Plex Sans, sans-serif" font-size="12">Same need, Austin line 2</text>
+      <text x="762" y="255" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11.5">Flagged before build → reuse</text>
+
+      <!-- clone group label -->
+      <rect x="750" y="52" width="210" height="74" rx="6" class="svg-box"/>
+      <text x="762" y="74" class="svg-ink" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600">Clone group CG-0412</text>
+      <text x="762" y="93" class="svg-ink" font-family="IBM Plex Sans, sans-serif" font-size="12">1 origin · 1 modified copy</text>
+      <text x="762" y="111" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11.5">usp_Label_Reprint (T-SQL)</text>
+
+      <!-- edges -->
+      <path d="M220,89 L248,89" class="edge e-confirmed" marker-end="url(#arr)"/>
+      <path d="M460,89 L498,89" class="edge e-inferred" marker-end="url(#arr)"/>
+      <path d="M710,89 L748,89" class="edge e-inferred"/>
+      <path d="M355,126 C355,200 420,233 498,233" class="edge e-similar" marker-end="url(#arr)"/>
+      <path d="M710,233 L748,233" class="edge e-similar" marker-end="url(#arr)"/>
+      <path d="M855,196 L855,128" class="edge e-similar" marker-end="url(#arr)"/>
+
+      <text x="222" y="146" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11">revision chain</text>
+      <text x="440" y="146" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11">copy found by code similarity 0.91</text>
+      <text x="372" y="190" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11">similar ticket 0.81</text>
+      <text x="862" y="166" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11">reuse proposal</text>
+
+      <!-- legend -->
+      <g font-family="IBM Plex Sans, sans-serif" font-size="11.5">
+        <path d="M20,305 L50,305" class="edge e-confirmed"/><text x="56" y="309" class="svg-ink">confirmed</text>
+        <path d="M140,305 L170,305" class="edge e-strong"/><text x="176" y="309" class="svg-ink">strong</text>
+        <path d="M240,305 L270,305" class="edge e-inferred"/><text x="276" y="309" class="svg-ink">inferred (code clone)</text>
+        <path d="M410,305 L440,305" class="edge e-similar"/><text x="446" y="309" class="svg-ink">similar requirement (duplicate candidate)</text>
+      </g>
+    </svg>
+  </div>
+  <p class="fine">Clone detection classifies each match as <b>exact copy</b> (same normalized AST hash), <b>modified variant</b> (MinHash/LSH similarity over normalized tokens), or <b>independent re-implementation</b> (different code, similar requirement found by embedding similarity of CR text). The first two build code lineage; the third is the duplicate the business wants to stop.</p>
+</section>
+
+<!-- ================= REVIEW ================= -->
+<section class="wrap block" id="review">
+  <div class="sec-head">
+    <div class="eyebrow">4 · Review of the requirement</div>
+    <h2>Strong design, with gaps to close before approval</h2>
+    <p>The profile is well thought out. The points below are what I would change or add. High items affect whether the POC answers the business question or whether we are allowed to run it at all.</p>
+  </div>
+  <div class="strengths">
+    <div><b>KEEP</b>One card per task revision, revision chain, card history. Matches how FlexPM actually works.</div>
+    <div><b>KEEP</b>Three stores (link DB, search, code search). Each fixes a real weakness of vector-only RAG.</div>
+    <div><b>KEEP</b>Confidence tiers with evidence, and links to commits rather than files.</div>
+    <div><b>KEEP</b>One incremental pipeline; backfill is a replay. No two systems that disagree.</div>
+    <div><b>KEEP</b>Phases 1–3 deliver search value before any AI answering.</div>
+    <div><b>KEEP</b>Card first, code on demand. Cards are summaries; code stays the ground truth.</div>
+  </div>
+  <div class="filter-row" id="issue-filter">
+    <button class="chip-btn" aria-pressed="true" data-f="all">All</button>
+    <button class="chip-btn" aria-pressed="false" data-f="high">High</button>
+    <button class="chip-btn" aria-pressed="false" data-f="medium">Medium</button>
+    <button class="chip-btn" aria-pressed="false" data-f="low">Low</button>
+  </div>
+  <div class="issues" id="issues"></div>
+</section>
+
+<!-- ================= BOM ================= -->
+<section class="wrap block" id="bom">
+  <div class="sec-head">
+    <div class="eyebrow">5 · Hardware, services and cost</div>
+    <h2>What to rent, what is free, and what it costs</h2>
+    <p>All software is open source and self-hosted, so the spend is rented EC2 capacity and disk. Prices are approximate AWS on-demand list prices for us-east-1 as I last knew them. Asian regions are typically 10–30% higher. Confirm with the AWS Pricing Calculator before submitting a purchase request.</p>
+  </div>
+
+  <div class="bom-grid">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <h3>Monthly infrastructure</h3>
+        <div class="seg" role="group" aria-label="GPU schedule">
+          <button id="sch-biz" aria-pressed="true">GPUs office hours</button>
+          <button id="sch-247" aria-pressed="false">GPUs 24/7</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="t" id="infra">
+          <thead><tr><th>Server</th><th>Role in POC</th><th class="num">$/h</th><th class="num">h/mo</th><th class="num">$/mo</th></tr></thead>
+          <tbody></tbody>
+          <tfoot><tr><td colspan="4">Monthly total</td><td class="num" id="infra-total">—</td></tr></tfoot>
+        </table>
+      </div>
+      <p class="fine">Office hours = 12 h × 22 weekdays + a 1-hour nightly window for the daily card update (286 h). The CPU servers stay on because the pipeline and portal run on them. Git mirror size is still unknown; add disk once the first full clone is measured.</p>
+    </div>
+
+    <div class="calc" id="calc">
+      <h3>Backfill estimator</h3>
+      <p style="font-size:13.5px;color:var(--muted)">One full run that writes a card for every ticket. These are planning guesses; the 300-ticket pilot replaces them with measured numbers.</p>
+      <div class="calc-fields">
+        <label for="c-tickets">Tickets<input id="c-tickets" type="number" value="20000" min="100" step="100"></label>
+        <label for="c-in">Input tokens / card<input id="c-in" type="number" value="40000" min="1000" step="1000"></label>
+        <label for="c-out">Output tokens / card<input id="c-out" type="number" value="2500" min="200" step="100"></label>
+        <label for="c-extra">Extra LLM calls (linking) ×<input id="c-extra" type="number" value="0.5" min="0" step="0.1"></label>
+        <label for="c-pre">Prefill tok/s per GPU<input id="c-pre" type="number" value="2500" min="100" step="100"></label>
+        <label for="c-dec">Decode tok/s per GPU (batched)<input id="c-dec" type="number" value="700" min="50" step="50"></label>
+        <label for="c-gpus">GPUs in burst server<select id="c-gpus"><option value="1">1 (g6e.2xlarge)</option><option value="4" selected>4 (g6e.12xlarge)</option><option value="8">8 (g6e.48xlarge)</option></select></label>
+        <label for="c-price">$ per GPU-hour<select id="c-price"><option value="2.62" selected>2.62 on-demand</option><option value="1.05">~1.05 spot (varies)</option></select></label>
+      </div>
+      <div class="calc-out">
+        <div><b id="o-gpuh">—</b><span>GPU-hours</span></div>
+        <div><b id="o-wall">—</b><span>wall-clock</span></div>
+        <div><b id="o-cost">—</b><span>cost per full run</span></div>
+      </div>
+      <p class="fine" style="margin-top:0" id="o-tokens"></p>
+    </div>
+  </div>
+
+  <div class="budget" aria-label="POC budget">
+    <div><span>Infrastructure × 3 months</span><b id="bud-infra">—</b></div>
+    <div><span>Backfill runs (pilot + 2 full)</span><b id="bud-runs">—</b></div>
+    <div><span>Contingency 20%</span><b id="bud-cont">—</b></div>
+    <div class="total"><span>POC AWS budget</span><b id="bud-total">—</b></div>
+  </div>
+  <p class="fine">The insight for budgeting: GPU money for the backfill is small next to the monthly base. The real risks are card quality and engineering time, which is why the pilot measures quality first. Backfill jobs are resumable, so spot instances are safe for them.</p>
+
+  <div class="sub-h"><h3>Software (all self-hosted, no licence fee)</h3><p>Licences as I understand them; legal should confirm before production. Items marked <i>simplify</i> are my recommendation for the POC only.</p></div>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>Need</th><th>POC choice</th><th>Licence</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>LLM serving</td><td>vLLM</td><td>Apache-2.0</td><td>OpenAI-compatible API, batching for backfill.</td></tr>
+        <tr><td>LLM gateway</td><td>LiteLLM proxy</td><td>MIT (core)</td><td>One endpoint, per-team keys, usage logs, model swap without code changes.</td></tr>
+        <tr><td>Link DB</td><td>PostgreSQL 16+</td><td>PostgreSQL</td><td>Source of truth for tickets, links, sites, clone groups.</td></tr>
+        <tr><td>Search index</td><td>OpenSearch <i>or</i> Elasticsearch</td><td>Apache-2.0 / AGPL·SSPL·ELv2</td><td>Recommend OpenSearch: hybrid keyword + vector with no paid-tier question (open question 4).</td></tr>
+        <tr><td>Embeddings + reranker</td><td>BGE-M3, bge-reranker-v2-m3</td><td>MIT / Apache-2.0</td><td>Multilingual; reranker is my addition.</td></tr>
+        <tr><td>Code search</td><td>Zoekt</td><td>Apache-2.0</td><td>Exact and regex search across all repos.</td></tr>
+        <tr><td>Documents → Markdown</td><td>Docling, MarkItDown, LibreOffice headless</td><td>MIT / MPL-2.0</td><td>LibreOffice converts old .doc/.xls/.ppt first.</td></tr>
+        <tr><td>OCR</td><td>PaddleOCR (Tesseract fallback)</td><td>Apache-2.0</td><td>Language packs depend on open question 3.</td></tr>
+        <tr><td>Code parsing</td><td>tree-sitter, ScriptDom, sqlglot</td><td>MIT</td><td>C#, T-SQL and other dialects.</td></tr>
+        <tr><td>Orchestration</td><td>Prefect</td><td>Apache-2.0</td><td>One scheduler for daily run and backfill.</td></tr>
+        <tr><td>Tracing &amp; eval</td><td>Langfuse</td><td>MIT (core)</td><td>Logs questions, tool calls, answers, feedback (N7).</td></tr>
+        <tr><td>Secret scanning</td><td>gitleaks</td><td>MIT</td><td>My addition: redact passwords and keys before code is indexed.</td></tr>
+        <tr><td>Containers</td><td>Docker Compose <i>simplify</i></td><td>Apache-2.0</td><td>Kubernetes (RKE2/k3s) moves to the production phase.</td></tr>
+        <tr><td>Object storage</td><td>Plain disk volume <i>simplify</i></td><td>—</td><td>MinIO is AGPL-3.0; check its current community-edition status before production.</td></tr>
+        <tr><td>Identity</td><td>Entra ID via OIDC</td><td>existing</td><td>Keycloak only if needed.</td></tr>
+        <tr><td>Secrets / registry</td><td>Docker secrets, SOPS <i>simplify</i></td><td>MPL-2.0</td><td>Vault and Harbor move to production.</td></tr>
+        <tr><td>Monitoring</td><td>Prometheus + Grafana</td><td>Apache-2.0 / AGPL-3.0</td><td>Internal use only.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sub-h"><h3>Open-weight model shortlist</h3><p>Decided by a bake-off on the golden question set in week 6, not by benchmarks. Newer releases may exist by the time we start; the bake-off includes them. All fit one 48 GB GPU with FP8 or 4-bit weights.</p></div>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>Model</th><th>Type</th><th>Licence</th><th>Why on the list</th></tr></thead>
+      <tbody>
+        <tr><td>Qwen3-32B</td><td>Dense 32B</td><td>Apache-2.0</td><td>Strong multilingual (Chinese, SE Asian languages) and tool calling. Default candidate for Ask.</td></tr>
+        <tr><td>Qwen3-30B-A3B</td><td>MoE, ~3B active</td><td>Apache-2.0</td><td>Several times faster per token. Candidate for backfill card writing.</td></tr>
+        <tr><td>gpt-oss-20b</td><td>MoE</td><td>Apache-2.0</td><td>Good reasoning and tool use for its size; cheap to serve.</td></tr>
+        <tr><td>Mistral Small (24B)</td><td>Dense 24B</td><td>Apache-2.0</td><td>Fast, solid tool calling, good fallback.</td></tr>
+        <tr><td>Qwen3-Coder-30B-A3B</td><td>MoE, code</td><td>Apache-2.0</td><td>Explaining code and judging CR-to-diff links.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sub-h"><h3>Later: company-owned hardware equivalent</h3><p>For the move off AWS after the POC (N1). Vendor quotes needed; the POC's measured GPU hours decide whether one or two GPU servers are needed.</p></div>
+  <div class="table-wrap">
+    <table class="t">
+      <thead><tr><th>Server</th><th>Spec</th><th>Replaces</th></tr></thead>
+      <tbody>
+        <tr><td>GPU server ×1–2</td><td>2× 48 GB-class data-centre GPUs (L40S or newer), 32+ cores, 256 GB RAM, 2× 3.84 TB NVMe</td><td>LLM, embedding and burst servers</td></tr>
+        <tr><td>Data server ×2</td><td>32 cores, 256 GB RAM, 4× 3.84 TB NVMe (replica for search and Postgres)</td><td>Data and pipeline servers</td></tr>
+        <tr><td>NAS</td><td>Capacity for raw files + git mirror + backups (size after first clone)</td><td>EBS volumes and snapshots</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================= PLAN ================= -->
+<section class="wrap block" id="plan">
+  <div class="sec-head">
+    <div class="eyebrow">6 · POC plan</div>
+    <h2>14 weeks, four go/no-go gates</h2>
+    <p>Same phases as the profile, with a Phase 0 added and the golden question set moved to the start, so every later phase is measured against a baseline. Each gate has numeric pass criteria; the numbers are my proposal for discussion.</p>
+  </div>
+  <div class="gantt"><div class="gantt-grid" id="gantt"></div></div>
+
+  <div class="gates">
+    <div class="gate"><h4><i></i>G1 · Foundation</h4><div class="when">end of week 4</div>
+      <ul><li>≥ 98% of pilot tickets and attachments normalized without errors</li><li>Git mirror complete; size and repo count known</li><li>Confirmed-link coverage measured and reported (% of CRs with a confirmed repo/PR)</li><li>Secret scan run; findings redacted</li></ul></div>
+    <div class="gate"><h4><i></i>G2 · Card pilot (300 tickets)</h4><div class="when">end of week 8</div>
+      <ul><li>Expert rating ≥ 4 of 5 on 50 sampled cards</li><li>≤ 2% of card statements fail the citation check</li><li>Measured tokens per card and GPU-hours per 1,000 cards → full backfill cost known</li></ul></div>
+    <div class="gate"><h4><i></i>G3 · Search release</h4><div class="when">end of week 10</div>
+      <ul><li>Golden set: right item in top 10 for ≥ 85% of lookup questions</li><li>Exact IDs and code symbols jump straight to the item: 100%</li><li>Search p95 latency under 1.5 s</li><li>Pilot users rate it better than today's way of searching</li></ul></div>
+    <div class="gate"><h4><i></i>G4 · AI release</h4><div class="when">end of week 13</div>
+      <ul><li>Answer correctness ≥ 75% on the golden set, graded by experts</li><li>Citation correctness ≥ 95%</li><li>Inferred-link precision ≥ 80% on 100 sampled links</li><li>List/count questions match the link DB exactly</li></ul></div>
+  </div>
+
+  <div class="two" style="margin-top:26px">
+    <div>
+      <h3 style="margin-bottom:10px">Team</h3>
+      <div class="table-wrap">
+        <table class="t">
+          <thead><tr><th>Role</th><th class="num">FTE</th><th>Owns</th></tr></thead>
+          <tbody>
+            <tr><td>Tech lead / architect</td><td class="num">1.0</td><td>Design, link model, gates</td></tr>
+            <tr><td>Data / backend engineers</td><td class="num">2.0</td><td>L0–L3 pipeline, link DB, search</td></tr>
+            <tr><td>ML / LLM engineer</td><td class="num">1.0</td><td>Cards, linking, model bake-off, evaluation</td></tr>
+            <tr><td>Frontend engineer</td><td class="num">0.5</td><td>Portal, from week 6</td></tr>
+            <tr><td>DevOps</td><td class="num">0.5</td><td>EC2, VPN, backups, monitoring</td></tr>
+            <tr><td>Domain reviewers ×3</td><td class="num">0.3</td><td>Golden set, card and link review</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:10px">Decisions needed from management</h3>
+      <ol class="decisions">
+        <li>Approve the 14-week POC and the team above.<span>Without dedicated reviewers, gates G2 and G4 can't be measured.</span></li>
+        <li>Approve the AWS budget.<span id="dec-budget">Approximately USD 11–16k including contingency.</span></li>
+        <li>Approve where the data may live.<span>Customer specs leave the company network. Needs IT security / legal sign-off on region, or run the POC on a company server instead.</span></li>
+        <li>Choose the pilot scope.<span>One region or product line, ~300 tickets with a mix of linked and unlinked code.</span></li>
+        <li>Name the domain reviewers.<span>They write the 100 golden questions in weeks 1–2.</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ================= QUESTIONS ================= -->
+<section class="wrap block" id="questions">
+  <div class="sec-head">
+    <div class="eyebrow">7 · Open questions</div>
+    <h2>What we still need to find out</h2>
+    <p>Questions from the profile plus the ones raised in this review (marked <i>new</i>). Each has the phase that needs the answer.</p>
+  </div>
+  <div class="qs">
+    <div><span>Phase 0</span><p>Number of repos and total code size (git mirror sizing)?</p></div>
+    <div><span>Phase 0</span><p>Is there a reliable record of which repo / branch / tag is deployed at each site?</p></div>
+    <div><span>Phase 0</span><p>Languages used in CRs and specs (English only, or others)?</p></div>
+    <div><span>Phase 0</span><p>Search engine: OpenSearch, or which Elasticsearch tier?</p></div>
+    <div><span>Phase 2</span><p>Which mid-size open-weight LLM and GPU type? (bake-off proposed)</p></div>
+    <div><span>Phase 0</span><p>Pilot scope: which region or product line first?</p></div>
+    <div><span>Phase 0</span><p>Domain reviewers for links, cards and capability pages?</p></div>
+    <div><span>Phase 1</span><p>Format of legacy (non-PR) code: TFVC, SVN, file shares?</p></div>
+    <div><span>Phase 0</span><p>May customer documents be stored in an AWS region? Any customer NDA or country export rules? <em>new</em></p></div>
+    <div><span>Phase 1</span><p>Does FlexPM export full edit history, or only the current version? <em>new</em></p></div>
+    <div><span>Phase 1</span><p>Mix of attachment formats: old Office, .msg, Visio, zip, scans? <em>new</em></p></div>
+    <div><span>Phase 1</span><p>Are stored procedures at sites also kept in repos, or only in site databases? <em>new</em></p></div>
+    <div><span>Phase 3</span><p>Can the KB write a "similar tickets" note back into FlexPM (API)? <em>new</em></p></div>
+    <div><span>Phase 3</span><p>Expected users, concurrent users and response-time targets? <em>new</em></p></div>
+    <div><span>Phase 0</span><p>Is Azure DevOps cloud (dev.azure.com) or Server on-prem? Network path from AWS? <em>new</em></p></div>
+    <div><span>Phase 5</span><p>Homegrown IDE: build now, or start with MCP for existing tools? <em>new</em></p></div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Shopfloor KB Hub · POC walkthrough · based on project profile dated 2026-10-01.</span>
+    <span>All ticket numbers, sites, customers, repo names and run figures in the simulation are illustrative. Prices are estimates to be confirmed.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+"use strict";
+
+/* ------------------------------------------------------------------ */
+/* Component info (shown when a node is clicked)                       */
+/* ------------------------------------------------------------------ */
+const NODES = {
+  flexpm: { layer: "Source", name: "FlexPM", text: "In-house CR system. Holds tickets, task revisions, attachments and edit history. >20,000 tickets, ~200 new per year.", why: "<b>Read-only for the KB.</b> The only write-back proposed is an optional \"similar tickets\" note (flow E)." },
+  ado: { layer: "Source", name: "Azure DevOps", text: "Source repos, PRs, commits, work items. The REST API gives the repo list and PR ↔ work-item links.", why: "<b>Low load:</b> the KB reads from its own git mirror, not from ADO, except for the repo list and PR metadata." },
+  legacy: { layer: "Source", name: "Legacy code", text: "Older code not in ADO git or not linked through PRs (TFVC, SVN, file shares).", why: "<b>Imported once</b> into the same git mirror, so one code store serves all tools." },
+  downloader: { layer: "L0", name: "FlexPM Terminal (existing)", text: "Existing multi-threaded downloader: daily tickets and attachments, run reports, problem tracking.", why: "<b>Change needed:</b> add a SHA-256 content hash next to date + size, and emit the run manifest." },
+  mirror: { layer: "L0", name: "Git mirror", text: "Bare clones of every repo (git clone --mirror), updated with a daily git fetch. Full history stays local.", why: "<b>Enables \"as it was\":</b> blame → commit → CR works offline and fast. POC indexes the default/release branch only." },
+  manifest: { layer: "L0", name: "Run manifest", text: "One file per run listing new, edited and deleted tickets plus new commits and repos.", why: "<b>Single input</b> for everything downstream. A backfill is just a very large manifest (D9)." },
+  hash: { layer: "L1", name: "Hash check", text: "Compares content hashes with the last run and drops anything unchanged.", why: "<b>Keeps daily runs small:</b> typically a few dozen files instead of thousands." },
+  docmd: { layer: "L1", name: "Doc → Markdown", text: "Docling or MarkItDown converts docx, pptx, xlsx and pdf to Markdown with front-matter. LibreOffice headless converts old binary Office files first.", why: "<b>Markdown</b> keeps headings and tables, so chunks and citations can point to a section or slide." },
+  ocr: { layer: "L1", name: "OCR", text: "PaddleOCR (Tesseract as fallback) for scanned PDFs and images inside documents.", why: "<b>Runs on GPU when available;</b> scans are the slowest part of normalization." },
+  codeparse: { layer: "L1", name: "Code parser", text: "tree-sitter for C#/Java/JS etc.; ScriptDom or sqlglot for SQL. Splits code into functions and stored procedures, each with a normalized AST hash.", why: "<b>Function-level units</b> are what search, clone detection and citations refer to." },
+  linker: { layer: "L2", name: "CR ↔ code linker", text: "Links each task revision to commits with a confidence tier: repo name / PR (confirmed), commit or branch text (strong), LLM judgement (inferred).", why: "<b>Commit-level links</b> (D8) allow \"requirement at that moment\"." },
+  clone: { layer: "L2", name: "Clone detector", text: "Normalized AST hashing for exact copies; MinHash/LSH for modified variants; embeddings of CR text for independent re-implementations.", why: "<b>Finds plug-and-play copies</b> that FlexPM never saw, and collapses copies in search results." },
+  cardgen: { layer: "L2", name: "Card generator", text: "Writes one Markdown card per task revision from a versioned template and prompt, via the LLM gateway.", why: "<b>Every statement carries a source tag</b> ([T] ticket, [A] attachment, [C] code) that a checker verifies." },
+  cards: { layer: "L2", name: "Card store", text: "Versioned card files. Edit history of the ticket is kept inside the card. Expert-edited sections are pinned.", why: "<b>Human edits survive</b> regeneration (F10)." },
+  review: { layer: "L2", name: "Review queue", text: "Low-confidence links, new clone groups, reviewed pages whose sources changed, and user feedback.", why: "<b>Turns expert time into better links:</b> a confirmed inferred link becomes strong." },
+  linkdb: { layer: "L3", name: "Link DB (PostgreSQL)", text: "Tickets, revisions, projects, sites, repos, commits, links with evidence, clone groups.", why: "<b>Source of truth</b> for complete lists and counts. The agent queries it through fixed, parameterized queries only." },
+  search: { layer: "L3", name: "Search index", text: "Hybrid keyword (BM25) + vector search over card sections, attachment sections and code units, with filters from card front-matter.", why: "<b>Keyword</b> finds IDs and part numbers; <b>vectors</b> find meaning. Copies are collapsed to one hit per clone group." },
+  embed: { layer: "L3", name: "Embed + rerank", text: "BGE-M3 multilingual embeddings; bge-reranker-v2-m3 re-orders the top 50 hits.", why: "<b>Reranker</b> is a cheap, large quality gain; it was not in the original profile." },
+  zoekt: { layer: "L3", name: "Code search (Zoekt)", text: "Trigram index over all repos: exact and regex search, symbols.", why: "<b>Exact matches</b> that embeddings miss: table names, flags, error codes." },
+  indexpages: { layer: "L3", name: "Index pages", text: "Generated, hierarchical navigation pages: region → site → capability → CR family.", why: "<b>Generated from the link DB</b> so they never drift. The agent reads them directly." },
+  wiki: { layer: "L4", name: "Wiki pages", text: "Ticket, CR family, repo, site and capability pages rendered from cards + link DB.", why: "<b>Recommendation:</b> render inside the portal instead of a separate static MkDocs build." },
+  package: { layer: "L4", name: "Ticket package", text: "One zip: card, original attachments, list of linked commits and files.", why: "<b>For sharing</b> with customers' project teams or new engineers (F4)." },
+  similar: { layer: "L4", name: "Similar tickets", text: "On every ticket: similar requirements at other sites, with where code exists.", why: "<b>The duplicate finder</b> (F5). Most valuable when shown at CR approval time (flow E)." },
+  agent: { layer: "L5", name: "Agent service", text: "Classifies the question, calls tools, assembles evidence, asks the LLM for a cited answer. REST + streaming.", why: "<b>One backend</b> for portal, IDE and MCP (F11)." },
+  gateway: { layer: "L5", name: "LLM gateway (LiteLLM)", text: "One OpenAI-compatible endpoint in front of all models; keys, quotas, logging.", why: "<b>Swap models</b> without touching the pipeline or agent code." },
+  llm: { layer: "L5", name: "LLM (vLLM)", text: "Mid-size open-weight model on our own GPU. Serves Ask by day and card writing by night.", why: "<b>Model chosen by bake-off</b> on the golden set." },
+  mcp: { layer: "L5", name: "MCP server", text: "Exposes the same tools (search_kb, get_card, which_sites, search_code…) to any MCP-capable AI client.", why: "<b>Cheap to add</b> and lets developers use the KB from existing tools before a homegrown IDE exists." },
+  trace: { layer: "L5", name: "Tracing & eval (Langfuse)", text: "Logs each question, tool call, answer, latency and feedback. Runs the golden set after every change.", why: "<b>Without this</b> we can't prove quality or catch regressions (N7)." },
+  portal: { layer: "L6", name: "Web portal", text: "Search, Ask, Browse, ticket package download, review screens. Company SSO.", why: "<b>Phase 3</b> ships search before AI answering, which lowers risk." },
+  ide: { layer: "L6", name: "IDE client", text: "Homegrown IDE with local tools: current file, repo, line → card.", why: "<b>Recommendation:</b> POC proves it through MCP; full IDE after the POC." },
+  user: { layer: "L6", name: "Engineer", text: "Developers, deployment and support engineers worldwide. Internal only.", why: "" },
+  expert: { layer: "L6", name: "Domain expert", text: "Reviews inferred links, cards and capability pages. Writes golden questions.", why: "<b>Needs named people</b> and time in the plan." }
+};
+
+/* ------------------------------------------------------------------ */
+/* Flows                                                               */
+/* ------------------------------------------------------------------ */
+const code = (label, body, right) => ({ kind: "code", label, body, right });
+const html = (label, body, right) => ({ kind: "html", label, body, right });
+
+const FLOWS = [
+{ id: "A", name: "Daily update", intro: "<b>Every night at 02:00.</b> New and edited tickets and new commits flow through all layers. Only what changed is reprocessed. In this run ticket <code>121648-02</code> was edited and a copy of its code was found at another site.",
+  steps: [
+  { path: ["flexpm","downloader"], layer: "L0", title: "Download new and edited tickets",
+    text: "The existing FlexPM Terminal pulls tickets created or edited since the last run, with their attachments. It now also records a SHA-256 hash for each file.",
+    why: "<b>Why add a hash:</b> date + size misses edits that keep the same size, and re-downloads files that only got a new timestamp.",
+    sample: code("flexpm-run-2026-10-01.json", `{
+  "run_id": "2026-10-01T02:00Z",
+  "tickets": {
+    "new":     ["134410-01", "134411-01", "134412-01"],
+    "edited":  ["121648-02", "128004-03", "130177-01",
+                "131552-02", "133015-01"],
+    "deleted": []
+  },
+  "attachments": { "downloaded": 14, "unchanged": 211,
+                   "bytes": "31.6 MB" },
+  "problems": []
+}`) },
+  { path: ["ado","mirror"], layer: "L0", title: "Fetch new commits into the git mirror",
+    text: "A git fetch on every bare mirror picks up new commits. The ADO REST API is called once to spot new repos, which are cloned. Legacy code was imported once and does not change.",
+    why: "<b>Why a mirror:</b> full history is local, so blame and \"code at commit X\" are fast and do not load Azure DevOps.",
+    sample: code("kbsync fetch --all", `repos scanned        1,284
+repos with changes      12
+new commits             47
+new repos                1
+  + APAC-KESTREL-FLEXPM134410-TraySerialCheck
+elapsed             6m 12s`) },
+  { path: ["downloader","manifest","mirror"], layer: "L0", title: "Write one run manifest",
+    text: "Ticket changes and commit changes are merged into one manifest. Everything downstream reads only this file.",
+    why: "<b>One pipeline (D9):</b> a historical backfill is the same pipeline with a manifest listing every ticket and commit.",
+    sample: code("manifest-2026-10-01.json (excerpt)", `{
+  "tickets_changed": 8,
+  "commits": [
+    { "repo": "APAC-KESTREL-FLEXPM121648-LabelReprintAuth",
+      "sha": "c41d7a0", "msg": "CR 121648-02 fix audit insert" },
+    { "repo": "AMER-HALCYON-ShopfloorExt",
+      "sha": "e91d04a", "msg": "label reprint changes for GDL" }
+  ]
+}`) },
+  { path: ["manifest","hash"], layer: "L1", title: "Skip what has not changed",
+    text: "Each file's hash is compared with the previous run. Unchanged attachments are skipped; only changed ones are converted again.",
+    why: "<b>Incremental by default (N5).</b> A normal night touches tens of files, not thousands.",
+    sample: html("hash check · 121648-02", `<table class="mini"><thead><tr><th>File</th><th>Before</th><th>Now</th><th>Action</th></tr></thead><tbody>
+<tr><td>QSP-114_revC.docx</td><td>9a1f…</td><td>9a1f…</td><td>skip</td></tr>
+<tr><td>QSP-114_revD.docx</td><td>—</td><td>4be0…</td><td><b>convert</b></td></tr>
+<tr><td>audit_finding_scan.pdf</td><td>77c2…</td><td>77c2…</td><td>skip</td></tr>
+<tr><td>ticket body</td><td>e013…</td><td>5d9a…</td><td><b>re-read</b></td></tr></tbody></table>`) },
+  { path: ["hash","docmd","ocr"], layer: "L1", title: "Convert documents to Markdown",
+    text: "The new spec revision becomes Markdown with front-matter that ties it to the ticket. Scanned pages go through OCR. Headings and tables are kept so citations can point to a section.",
+    why: "<b>Watch out:</b> 20 years of attachments include .doc, .xls, .ppt, .msg and Visio. Old binary formats go through LibreOffice first.",
+    sample: code("121648-02/QSP-114_revD.md", `---
+ticket: 121648-02
+source: QSP-114_revD.docx
+sha256: 4be0c2…
+converted_by: docling 2.x
+---
+# 4 Label reprint control
+## 4.2 Authorization
+Reprint of a serial label requires a supervisor
+badge (level >= 3). A unit may be reprinted at
+most **2** times. Each reprint is written to the
+audit log with operator, supervisor and reason.`) },
+  { path: ["hash","codeparse"], layer: "L1", title: "Split code into functions and procedures",
+    text: "Changed files from the new commits are parsed into units: functions, classes, stored procedures. Each unit gets a normalized AST hash (names and whitespace removed) for clone detection.",
+    why: "<b>Units, not files,</b> are what search returns and what citations point to: repo, path, line range, commit.",
+    sample: code("unit: usp_Label_Reprint", `{
+  "repo": "APAC-KESTREL-FLEXPM121648-LabelReprintAuth",
+  "path": "db/procs/usp_Label_Reprint.sql",
+  "lines": [12, 141],
+  "commit": "c41d7a0",
+  "lang": "tsql",
+  "kind": "stored_procedure",
+  "ast_hash": "n:5f02e9…",
+  "minhash": [0x1a3f, 0x77b0, …],
+  "tables": ["LabelPrint", "LabelReprintAudit", "Badge"]
+}`) },
+  { path: ["codeparse","linker","linkdb"], layer: "L2", title: "Link the commits to CRs",
+    text: "Each new commit is linked with the strongest evidence available. Here the repo name gives a confirmed link and the commit message adds a strong one. The second repo has no CR evidence at all.",
+    why: "<b>Links to commits, not files (D8).</b> Later, blame on any line leads to the commit, then to the CR as it was at that time.",
+    sample: html("link records", `<table class="mini"><thead><tr><th>Commit</th><th>CR</th><th>Tier</th><th>Evidence</th></tr></thead><tbody>
+<tr><td>c41d7a0</td><td>121648-02</td><td><span class="conf confirmed">confirmed</span></td><td>repo name FLEXPM121648</td></tr>
+<tr><td>c41d7a0</td><td>121648-02</td><td><span class="conf strong">strong</span></td><td>msg "CR 121648-02"</td></tr>
+<tr><td>e91d04a</td><td>—</td><td><span class="conf unlinked">unlinked</span></td><td>no CR in repo, msg, branch</td></tr></tbody></table>`) },
+  { path: ["codeparse","clone","linkdb"], layer: "L2", title: "Find copies across repos",
+    text: "The unlinked commit changed a procedure that is 91% similar to the one in CR 121648-02's repo. It is a modified variant: same structure, reprint limit changed from 2 to 5. That is a plug-and-play copy, now visible.",
+    why: "<b>This is the only way</b> to find code reused without a new CR. The link is stored as inferred until an expert confirms it.",
+    sample: code("clone group CG-0412", `origin   APAC-KESTREL-FLEXPM121648-LabelReprintAuth
+         db/procs/usp_Label_Reprint.sql @ 7f3c9e2
+member   AMER-HALCYON-ShopfloorExt
+         sql/usp_Label_Reprint.sql     @ e91d04a
+type     modified_variant
+jaccard  0.91   ast_exact: no
+diff     @MaxReprint 2 -> 5; extra site filter GDL
+link     e91d04a -> 121648-02  [INFERRED, via clone]`) },
+  { path: ["linker","cardgen","gateway","llm","cards"], layer: "L2", title: "Regenerate the knowledge card",
+    text: "Only cards whose sources changed are rewritten. The card for 121648-02 gets a new version (edit #4), keeping the history. Every sentence carries a source tag, and a checker confirms each cited text really exists.",
+    why: "<b>Traceable by construction (N3).</b> A statement that can't be matched to a source is moved to \"Gaps & confidence\" or dropped.",
+    sample: code("cards/121648-02.md (excerpt)", `---
+ticket: 121648-02
+cr_family: 121648
+previous_revision: 121648-01
+applies_to_projects: [MES_PEN_KESTREL_X200, MES_SZH_KESTREL_X200]
+link_confidence: confirmed
+card_status: generated
+card_version: 4
+template_version: v1
+---
+# Overview
+Limits serial-label reprints to 2 per unit and logs
+every reprint with operator, supervisor and reason.
+Built after a customer audit finding. [T1][A1]
+
+## Business logic
+Supervisor badge level >= 3 required. [A1 §4.2]
+Max 2 reprints per unit. [A1 §4.2][C1 L48-55]
+
+## Variants & reuse
+Modified copy at GDL (limit 5), no CR. [C2] INFERRED
+
+## References
+[T1] FlexPM 121648-02, edit 4 (2026-09-30)
+[A1] QSP-114_revD.docx §4.2
+[C1] …FLEXPM121648…/usp_Label_Reprint.sql L12-141 @c41d7a0
+[C2] AMER-HALCYON-ShopfloorExt/sql/usp_Label_Reprint.sql @e91d04a`) },
+  { path: ["cards","linkdb","search","embed","indexpages"], layer: "L3", title: "Update the index",
+    text: "Link records are upserted. Only the changed card sections are re-embedded. Index pages for CR family 121648 and sites PEN, SZH and GDL are re-rendered from the link DB.",
+    why: "<b>Generated index pages (D6)</b> never drift from the data, unlike hand-kept lists.",
+    sample: code("index update log", `linkdb   upsert links        3   clone_groups 1
+search   card sections       4 re-embedded (bge-m3)
+search   attachment chunks   9 re-embedded
+search   code units          6 re-embedded
+zoekt    shards rebuilt      2
+pages    family/121648       re-rendered
+pages    site/PEN site/SZH site/GDL  re-rendered`) },
+  { path: ["indexpages","wiki","similar"], layer: "L4", title: "Refresh the affected pages",
+    text: "Ticket, family and site pages are rebuilt. The expert-reviewed capability page \"Label reprint control\" is flagged because one of its sources changed.",
+    why: "<b>Reviewed content is never overwritten silently.</b> The page shows \"source changed since review\" until an expert looks.",
+    sample: html("wiki · flags", `<table class="mini"><thead><tr><th>Page</th><th>Status</th></tr></thead><tbody>
+<tr><td>ticket/121648-02</td><td>rebuilt</td></tr>
+<tr><td>family/121648</td><td>rebuilt</td></tr>
+<tr><td>site/GDL</td><td>rebuilt · new capability listed</td></tr>
+<tr><td>capability/label-reprint-control</td><td><span class="conf inferred">reviewed · source changed</span></td></tr></tbody></table>`) },
+  { path: ["clone","review","expert"], layer: "L2", title: "Send uncertain items to an expert",
+    text: "The inferred copy link and the flagged page go to the review queue. The GDL support lead confirms the copy; the link becomes strong with \"confirmed by expert\" as evidence.",
+    why: "<b>Expert time is the scarce resource.</b> The queue shows only what the machine is unsure about, ranked by impact.",
+    sample: html("review queue · 3 items", `<table class="mini"><thead><tr><th>Item</th><th>Reason</th><th>Result</th></tr></thead><tbody>
+<tr><td>e91d04a → 121648-02</td><td>inferred via clone 0.91</td><td><span class="conf human">confirmed by expert</span></td></tr>
+<tr><td>capability/label-reprint-control</td><td>source changed</td><td>re-approved</td></tr>
+<tr><td>134410-01 ↔ repo</td><td>new repo, 1 commit</td><td>pending</td></tr></tbody></table>
+<p class="note-box" style="margin-top:10px">Run report: 8 tickets · 47 commits · 6 cards regenerated · 3 review items · 41 min · 0.4 GPU-hours</p>`) }
+  ]},
+
+{ id: "B", name: "Ask in the portal", intro: "<b>An engineer asks a question in the web portal.</b> The agent picks tools by question type: the link DB for complete lists, search and cards for meaning, code only when the card is not enough.",
+  steps: [
+  { path: ["user","portal","agent"], layer: "L6 → L5", title: "Engineer asks a question",
+    text: "Signed in with company SSO, an engineer in Suzhou asks: \"Which sites have label reprint authorization, and why was the reprint limit added?\"",
+    why: "<b>Two kinds of question in one:</b> a complete list (which sites) and an explanation (why).",
+    sample: code("POST /ask", `{
+  "user": "wei.l@company (Entra ID)",
+  "question": "Which sites have label reprint authorization,
+               and why was the reprint limit added?",
+  "filters": {},
+  "client": "portal"
+}`) },
+  { path: ["agent","gateway","llm"], layer: "L5", title: "Classify and plan",
+    text: "A short LLM call classifies the question (lookup, list-count, compare, explain) and plans which tools to call.",
+    why: "<b>List questions never rely on top-k search alone.</b> They go to the link DB, so the list is complete.",
+    sample: code("plan", `{
+  "types": ["list_count", "explain"],
+  "plan": [
+    "get_index('capability/label-reprint-control')",
+    "which_sites(capability='label-reprint-control')",
+    "search_kb('reprint limit reason')",
+    "get_card(<best match>, sections=['Overview','Business logic'])"
+  ]
+}`) },
+  { path: ["agent","indexpages"], layer: "L3", title: "Navigate the index pages",
+    text: "The agent reads the generated capability index page to find the CR families involved.",
+    why: "<b>Index pages are small and hierarchical,</b> so they fit in the model's context, unlike one flat list of 20,000 tickets.",
+    sample: code("index/capability/label-reprint-control.md", `# Label reprint control
+CR families: 121648 (2 revisions), 133902 (1)
+Clone groups: CG-0412 (2 members)
+Sites: 4  ->  see which_sites
+Related: label-printing, serial-generation`) },
+  { path: ["agent","linkdb"], layer: "L3", title: "Get the complete list from the link DB",
+    text: "which_sites runs a fixed, parameterized SQL query. It returns every site with the evidence for each, including the copy found by clone detection.",
+    why: "<b>Honest completeness:</b> the answer lists only known links and says how many repos are still unlinked.",
+    sample: html("which_sites(capability='label-reprint-control')", `<table class="mini"><thead><tr><th>Site</th><th>Source</th><th>Via</th><th>Tier</th></tr></thead><tbody>
+<tr><td>PEN</td><td>121648-01, -02</td><td>repo name</td><td><span class="conf confirmed">confirmed</span></td></tr>
+<tr><td>SZH</td><td>121648-02</td><td>repo name</td><td><span class="conf confirmed">confirmed</span></td></tr>
+<tr><td>GDL</td><td>copy of 121648-02</td><td>clone CG-0412</td><td><span class="conf human">strong · expert</span></td></tr>
+<tr><td>AUS</td><td>133902-01</td><td>PR link</td><td><span class="conf confirmed">confirmed</span></td></tr></tbody></table>
+<p style="font-size:12px;color:var(--muted);margin-top:6px">Coverage note: 212 of 1,284 repos have no CR link yet.</p>`) },
+  { path: ["agent","search","embed"], layer: "L3", title: "Search cards and documents",
+    text: "Hybrid search (keyword + vector) with reranking finds the passages about why the limit exists. Copies in the same clone group are collapsed to one result.",
+    why: "<b>Clone collapsing</b> stops 30 identical copies from filling the results and hiding the second-best answer.",
+    sample: code("search_kb('reprint limit reason') top 4", `0.92  card 121648-02 § Overview
+0.88  attachment QSP-114_revD.md § 4.2 Authorization
+0.81  attachment audit_finding_scan.md § Finding 3
+0.74  card 133902-01 § Business logic
+      (2 code hits collapsed into clone group CG-0412)`) },
+  { path: ["agent","cards"], layer: "L2", title: "Read the card, overview first",
+    text: "The agent reads the Overview and Business logic of card 121648-02 and follows the reference to the audit finding.",
+    why: "<b>Card first, code on demand (D3).</b> Most \"why\" questions are answered from the card and its documents.",
+    sample: code("get_card('121648-02', ['Overview','Business logic'])", `Limits serial-label reprints to 2 per unit and logs
+every reprint. Built after customer audit finding #3
+(2021-Q2): duplicate serial labels found on shipped
+units after uncontrolled reprints. [T1][A2]`) },
+  { path: ["agent","zoekt","mirror"], layer: "L3 → L0", title: "Check the code when the card is not enough",
+    text: "To confirm today's limit at each site, the agent reads the exact lines at the linked commits. The card says 2; the GDL copy says 5.",
+    why: "<b>The card is a summary.</b> Exact values come from code at a known commit, and the answer cites the line range.",
+    sample: code("get_code(usp_Label_Reprint.sql, L48-55, @c41d7a0)", `48  DECLARE @MaxReprint INT = 2;
+49  SELECT @Count = COUNT(*) FROM dbo.LabelReprintAudit
+50   WHERE SerialNo = @SerialNo;
+51  IF @Count >= @MaxReprint
+52  BEGIN
+53    RAISERROR('Reprint limit reached', 16, 1);
+54    RETURN;
+55  END`) },
+  { path: ["agent","gateway","llm"], layer: "L5", title: "Write the answer with citations",
+    text: "The LLM writes the answer from the collected evidence only. Each claim is cited; the inferred or expert-confirmed copy is labelled as such.",
+    why: "<b>Inferred links are never shown as fact (N4).</b> The label travels with the claim.",
+    sample: html("answer", `<div class="answer">
+<p class="q">4 sites have label reprint authorization:</p>
+<ul style="margin:0;padding-left:18px">
+<li><b>PEN</b> and <b>SZH</b>: CR 121648-02 <span class="conf confirmed">confirmed</span> <span class="cite">T1</span></li>
+<li><b>GDL</b>: a copy of 121648-02 with the limit raised to 5, no CR of its own <span class="conf human">expert-confirmed copy</span> <span class="cite">C2</span></li>
+<li><b>AUS</b>: separate implementation, CR 133902-01 <span class="conf confirmed">confirmed</span> <span class="cite">T3</span></li>
+</ul>
+<p><b>Why the limit:</b> a 2021 customer audit found duplicate serial labels on shipped units after uncontrolled reprints. The spec (QSP-114 §4.2) set a maximum of 2 reprints with supervisor approval <span class="cite">A1</span> <span class="cite">A2</span>, implemented at line 48 <span class="cite">C1</span>.</p>
+<div class="srcs"><span>T1 FlexPM 121648-02 · A1 QSP-114_revD §4.2 · A2 audit_finding_scan p.3</span><span>C1 …FLEXPM121648…/usp_Label_Reprint.sql L48-55 @c41d7a0 · C2 AMER-HALCYON…@e91d04a · T3 133902-01</span></div>
+</div>`) },
+  { path: ["agent","portal","user","trace"], layer: "L6", title: "Show sources and collect feedback",
+    text: "Citations open the card, document section or code lines. The whole interaction is logged. Thumbs down or \"wrong link\" goes to the review queue.",
+    why: "<b>The log feeds evaluation:</b> real questions become new golden-set entries.",
+    sample: code("trace (Langfuse)", `trace_id    7c1e…   user wei.l   client portal
+tools       get_index, which_sites, search_kb,
+            get_card, get_code
+tokens      in 9,840  out 412
+latency     first token 2.1 s   total 6.8 s
+feedback    👍`) }
+  ]},
+
+{ id: "C", name: "Ask from the IDE", intro: "<b>A developer is looking at code with no CR.</b> The IDE sends what is on screen; the agent traces the line back to a requirement through blame, clone group and card.",
+  steps: [
+  { path: ["user","ide","agent"], layer: "L6 → L5", title: "Developer asks about the code on screen",
+    text: "In repo AMER-HALCYON-ShopfloorExt, a developer at GDL selects line 48 of usp_Label_Reprint.sql and asks: \"Why is there a reprint limit? Can I remove it?\"",
+    why: "<b>Same backend as the portal (F11);</b> the IDE adds local context tools.",
+    sample: code("IDE context", `{
+  "repo": "AMER-HALCYON-ShopfloorExt",
+  "path": "sql/usp_Label_Reprint.sql",
+  "selection": [48, 48],
+  "head": "a90f113",
+  "question": "Why is there a reprint limit? Can I remove it?"
+}`) },
+  { path: ["agent","mirror"], layer: "L0", title: "Blame the line",
+    text: "git blame on the local mirror shows the line came from commit e91d04a in 2022. The author has left the company. The commit message has no CR number.",
+    why: "<b>Code → requirement</b> starts with the commit, not the current file.",
+    sample: code("git blame -L 48,48", `e91d04a (j.ortega 2022-03-14) DECLARE @MaxReprint INT = 5;
+commit e91d04a  "label reprint changes for GDL"
+author status: left company 2023`) },
+  { path: ["agent","linkdb"], layer: "L3", title: "No CR on the commit, so look up the clone group",
+    text: "The link DB has no CR for the commit, but the procedure is in clone group CG-0412, whose origin is CR 121648-02.",
+    why: "<b>Clone lineage</b> gives a requirement to code that never had one.",
+    sample: code("query_links(commit='e91d04a')", `direct CR links: none
+clone_group: CG-0412 (modified_variant, 0.91)
+origin: 121648-02 @ 7f3c9e2   tier: strong (expert)`) },
+  { path: ["agent","cards"], layer: "L2", title: "Read the origin card",
+    text: "Card 121648-02 explains the audit finding and the supervisor rule. It also lists GDL as a modified copy.",
+    why: "<b>The original reason</b> applies to the copy too, unless the copy's site changed the rule on purpose.",
+    sample: code("card 121648-02 § Business logic", `Supervisor badge level >= 3 required. [A1 §4.2]
+Max 2 reprints per unit. [A1 §4.2][C1 L48-55]
+Reason: customer audit finding #3, duplicate
+serial labels after uncontrolled reprints. [A2]`) },
+  { path: ["agent","zoekt","mirror"], layer: "L3", title: "Compare the copy with the original",
+    text: "The agent diffs the copy against the origin commit. Two changes: the limit was raised to 5, and a site filter was added.",
+    why: "<b>Different versions run at different sites;</b> the answer must say which one the developer is looking at.",
+    sample: code("diff origin@7f3c9e2 copy@e91d04a", `- DECLARE @MaxReprint INT = 2;
++ DECLARE @MaxReprint INT = 5;
++ IF @SiteCode <> 'GDL' RETURN;`) },
+  { path: ["agent","gateway","llm","ide"], layer: "L5 → L6", title: "Answer tied to the line on screen",
+    text: "The answer explains the reason, warns about the divergence, and suggests raising a CR for the copy.",
+    why: "<b>Useful, not just correct:</b> it tells the developer the risk of removing the check.",
+    sample: html("answer in IDE", `<div class="answer">
+<p>This limit comes from <b>CR 121648-02</b> (Penang, 2021), copied here in 2022 without its own CR <span class="conf human">expert-confirmed copy</span>.</p>
+<p>It exists because a customer audit found duplicate serial labels after uncontrolled reprints <span class="cite">A2</span>. <b>Removing it would reopen that audit finding.</b></p>
+<p>This copy differs from the original: limit 5 instead of 2, and a GDL-only filter <span class="cite">C2</span>. No requirement for the change was found.</p>
+<p class="note-box">Suggestion: raise a CR to document the GDL limit of 5, or align it with the original.</p>
+</div>`) },
+  { path: ["ide","review","expert"], layer: "L2", title: "Developer confirms the link in one click",
+    text: "The developer clicks \"Yes, this is a copy of 121648-02\". The confirmation goes to the review queue as evidence; a lead approves it.",
+    why: "<b>Every use improves the data:</b> links get confirmed by the people who know the code.",
+    sample: html("review queue", `<table class="mini"><thead><tr><th>Link</th><th>Evidence</th><th>Status</th></tr></thead><tbody>
+<tr><td>e91d04a → 121648-02</td><td>clone 0.91 + developer confirmation</td><td><span class="conf human">strong · expert</span></td></tr></tbody></table>`) }
+  ]},
+
+{ id: "D", name: "Full rebuild", intro: "<b>Rare and planned.</b> When the card template or prompt changes, all cards are rewritten on a rented burst GPU server. The old version stays live until the new one passes evaluation.",
+  steps: [
+  { path: ["cardgen"], layer: "L2", title: "Template changes from v1 to v2",
+    text: "Example: v2 adds a \"Configuration flags\" section. Every card must be regenerated, so the full manifest is replayed through the same pipeline.",
+    why: "<b>Full rebuild only on template or prompt version change (N5).</b>",
+    sample: code("template diff", `template_version: v1 -> v2
++ ## Configuration flags
++ Flags, parameters and default values that change
++ behaviour, with file and line references.`) },
+  { path: ["cardgen","gateway","llm"], layer: "L5", title: "Batch generation on a burst GPU server",
+    text: "A 4-GPU server is rented for the run, preferably as a spot instance. Jobs checkpoint after each card, so an interrupted run resumes where it stopped.",
+    why: "<b>Expert-edited sections are pinned.</b> Regenerated text for those sections is shown to the reviewer as a diff, never written over.",
+    sample: code("backfill job", `server     g6e.12xlarge (4x L40S) spot
+model      qwen3-30b-a3b (example)
+cards      20,000   done 12,410   failed 18 (retry)
+rate       ~640 cards/h
+eta        11 h 50 m
+pinned     212 human-edited sections kept`) },
+  { path: ["cards","search","embed","indexpages"], layer: "L3", title: "Build a shadow index",
+    text: "New cards are embedded into a new index (kb-v2) next to the live one (kb-v1). Index pages are rebuilt into the same new version.",
+    why: "<b>Zero downtime:</b> users keep using v1 during the run.",
+    sample: code("indices", `kb-v1   live     20,000 cards   alias: kb
+kb-v2   shadow   20,000 cards   building…`) },
+  { path: ["agent","trace"], layer: "L5", title: "Evaluate against the golden set",
+    text: "The 100 golden questions run against both versions. Scores are compared per question type.",
+    why: "<b>Quality is measured, not assumed.</b> A regression on any type blocks the switch.",
+    sample: html("golden set · v1 vs v2", `<table class="mini"><thead><tr><th>Metric</th><th>v1</th><th>v2</th></tr></thead><tbody>
+<tr><td>Answer correct</td><td>78%</td><td><b>83%</b></td></tr>
+<tr><td>Citation correct</td><td>96%</td><td>97%</td></tr>
+<tr><td>List/count exact</td><td>100%</td><td>100%</td></tr>
+<tr><td>"Not found" rate</td><td>9%</td><td>7%</td></tr></tbody></table>`) },
+  { path: ["search","portal"], layer: "L6", title: "Switch the alias, or keep v1",
+    text: "v2 is better on every metric, so the alias moves to kb-v2. v1 is kept for a week for rollback, then deleted.",
+    why: "<b>One switch, instant rollback.</b>",
+    sample: code("alias switch", `alias kb: kb-v1 -> kb-v2   OK
+kb-v1 retained until 2026-10-08`) }
+  ]},
+
+{ id: "E", name: "Duplicate check", proposed: true, intro: "<b>My proposed addition.</b> The biggest saving comes from catching a duplicate before it is built. When a new CR reaches dev-lead approval, the KB shows similar functions that already exist.",
+  steps: [
+  { path: ["flexpm","downloader"], layer: "L0", title: "A new CR is created",
+    text: "CR 134412-01 \"Supervisor approval for label reprint, Austin line 2\" is created and moves to IN DEV. LEAD APPROVAL.",
+    why: "<b>Timing matters:</b> after approval, the team has already started building.",
+    sample: code("FlexPM 134412-01", `Topic:   Supervisor approval for label reprint – line 2
+Project: MES_AUS_ORION_L2 Line 2 rollout [P-23110]
+State:   IN DEV. LEAD APPROVAL
+Owner:   r.patel`) },
+  { path: ["downloader","manifest","hash","docmd"], layer: "L1", title: "Normalize it quickly",
+    text: "New tickets in approval state are picked up hourly (not just nightly) and normalized.",
+    why: "<b>Small and cheap:</b> only a handful of new tickets per day.",
+    sample: code("hourly mini-run", `tickets new: 1   attachments: 2   elapsed: 48 s`) },
+  { path: ["similar","search","embed","linkdb"], layer: "L4", title: "Find similar functions",
+    text: "find_similar compares the new CR's requirement with all cards, then adds where working code exists from the link DB.",
+    why: "<b>Requirement similarity</b> finds independent re-implementations that code clones can't.",
+    sample: html("find_similar('134412-01')", `<table class="mini"><thead><tr><th>Match</th><th>Score</th><th>Code at</th></tr></thead><tbody>
+<tr><td>121648-02 Reprint limit + supervisor</td><td>0.88</td><td>PEN, SZH, GDL (copy)</td></tr>
+<tr><td>133902-01 Reprint approval workflow</td><td>0.81</td><td>AUS (same site!)</td></tr>
+<tr><td>119230-01 Label print audit trail</td><td>0.64</td><td>PEN</td></tr></tbody></table>`) },
+  { path: ["similar","flexpm","expert"], layer: "L4 → Source", title: "Tell the dev lead before approval",
+    text: "A note with the matches is posted to the ticket (if FlexPM allows it) or emailed to the approver.",
+    why: "<b>Needs one FlexPM write permission</b> or email; see open questions.",
+    sample: html("note on 134412-01", `<div class="note-box"><b>Similar functions already exist.</b> 133902-01 at the same site (AUS) does reprint approval and is in production. 121648-02 adds a reprint limit. Consider reusing 133902-01. <a href="#linking">Open comparison</a></div>`) },
+  { path: ["expert","linkdb"], layer: "L3", title: "Reuse is recorded, not hidden",
+    text: "The lead approves reuse of 133902-01. Because the new CR now points to the reused code, the copy is a confirmed link from day one instead of an invisible plug-and-play copy.",
+    why: "<b>Fixes the root cause</b> of missing links going forward.",
+    sample: code("link record", `134412-01 -> reuses 133902-01   tier: CONFIRMED
+evidence: dev-lead decision 2026-10-02`) }
+  ]}
+];
+
+/* ------------------------------------------------------------------ */
+/* Simulation engine                                                   */
+/* ------------------------------------------------------------------ */
+const $ = (s, r = document) => r.querySelector(s);
+const diagram = $("#diagram"), wires = $("#wires"), packet = $("#packet");
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const state = { f: 0, s: 0, playing: false, timer: null, mode: "step" };
+
+const tabs = $("#flowtabs");
+FLOWS.forEach((fl, i) => {
+  const b = document.createElement("button");
+  b.className = "flowtab"; b.setAttribute("role", "tab"); b.id = "tab-" + fl.id;
+  b.innerHTML = `<b>${fl.id}</b>${fl.name}${fl.proposed ? " <em>proposed</em>" : ""}`;
+  b.addEventListener("click", () => { stop(); state.f = i; state.s = 0; render(true); });
+  tabs.appendChild(b);
+});
+
+function nodeEl(id) { return diagram.querySelector(`[data-node="${id}"]`); }
+function center(id) {
+  const el = nodeEl(id); if (!el) return null;
+  const r = el.getBoundingClientRect(), d = diagram.getBoundingClientRect();
+  return { x: r.left - d.left + r.width / 2, y: r.top - d.top + r.height / 2 };
+}
+
+function drawPath(path, animate) {
+  const d = diagram.getBoundingClientRect();
+  wires.setAttribute("viewBox", `0 0 ${d.width} ${d.height}`);
+  const pts = path.map(center).filter(Boolean);
+  if (pts.length < 2) {
+    wires.innerHTML = "";
+    if (pts.length === 1) { packet.style.opacity = 1; packet.getAnimations().forEach(a => a.cancel()); packet.style.transform = `translate(${pts[0].x - 8}px, ${pts[0].y - 8}px)`; }
+    return;
+  }
+  wires.innerHTML = `<polyline class="wire" points="${pts.map(p => p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ")}"/>`;
+  packet.style.opacity = 1;
+  const frames = pts.map(p => ({ transform: `translate(${p.x - 8}px, ${p.y - 8}px)` }));
+  packet.getAnimations().forEach(a => a.cancel());
+  const last = frames[frames.length - 1].transform;
+  if (!animate || reduce) { packet.style.transform = last; return; }
+  packet.style.transform = last;
+  packet.animate(frames, { duration: 650 * (pts.length - 1), easing: "ease-in-out", fill: "none" });
+}
+
+function renderSample(sample) {
+  const box = $("#c-sample"); box.innerHTML = "";
+  if (!sample) return;
+  const wrap = document.createElement("div"); wrap.className = "specimen";
+  const head = document.createElement("div"); head.className = "specimen-head";
+  const l = document.createElement("span"); l.textContent = sample.label;
+  const r = document.createElement("span"); r.textContent = sample.right || "sample data";
+  head.append(l, r); wrap.appendChild(head);
+  if (sample.kind === "code") {
+    const pre = document.createElement("pre"); pre.textContent = sample.body; wrap.appendChild(pre);
+  } else {
+    const div = document.createElement("div"); div.className = "html"; div.innerHTML = sample.body; wrap.appendChild(div);
+  }
+  box.appendChild(wrap);
+}
+
+function render(animate) {
+  state.mode = "step";
+  const fl = FLOWS[state.f], st = fl.steps[state.s];
+  tabs.querySelectorAll(".flowtab").forEach((t, i) => t.setAttribute("aria-selected", i === state.f ? "true" : "false"));
+  $("#flow-intro").innerHTML = fl.intro;
+  $("#c-step").textContent = `Flow ${fl.id} · Step ${state.s + 1} of ${fl.steps.length}`;
+  $("#c-layer").textContent = st.layer;
+  $("#c-title").textContent = st.title;
+  $("#c-text").textContent = st.text;
+  const why = $("#c-why"); why.innerHTML = st.why || ""; why.hidden = !st.why;
+  renderSample(st.sample);
+
+  const involved = new Set(fl.steps.flatMap(x => x.path));
+  diagram.classList.add("running");
+  diagram.querySelectorAll(".node").forEach(n => {
+    const id = n.dataset.node;
+    n.classList.toggle("involved", involved.has(id));
+    n.classList.toggle("active", st.path.includes(id));
+  });
+  const dots = $("#dots"); dots.innerHTML = "";
+  fl.steps.forEach((_, i) => {
+    const d = document.createElement("button");
+    d.className = "dot" + (i === state.s ? " on" : i < state.s ? " done" : "");
+    d.setAttribute("aria-label", `Go to step ${i + 1}: ${fl.steps[i].title}`);
+    d.addEventListener("click", () => { stop(); state.s = i; render(true); });
+    dots.appendChild(d);
+  });
+  $("#b-prev").disabled = state.s === 0;
+  $("#b-next").disabled = state.s === fl.steps.length - 1;
+  drawPath(st.path, animate);
+}
+
+function showNode(id) {
+  stop();
+  const n = NODES[id]; if (!n) return;
+  state.mode = "node";
+  $("#c-step").textContent = "Component";
+  $("#c-layer").textContent = n.layer;
+  $("#c-title").textContent = n.name;
+  $("#c-text").textContent = n.text;
+  const why = $("#c-why"); why.innerHTML = n.why || ""; why.hidden = !n.why;
+  const used = FLOWS.filter(f => f.steps.some(s => s.path.includes(id))).map(f => `${f.id} · ${f.name}`);
+  renderSample(used.length ? html("used in flows", `<p style="font-size:13px">${used.join("<br>")}</p><p style="font-size:12.5px;color:var(--muted);margin-top:6px">Press Next or Play to return to the walkthrough.</p>`, "") : null);
+  diagram.classList.remove("running");
+  diagram.querySelectorAll(".node").forEach(el => { el.classList.remove("involved"); el.classList.toggle("active", el.dataset.node === id); });
+  drawPath([id], false);
+  $("#b-prev").disabled = false; $("#b-next").disabled = false;
+}
+
+function next() {
+  if (state.mode === "node") { render(true); return; }
+  const fl = FLOWS[state.f];
+  if (state.s < fl.steps.length - 1) { state.s++; render(true); return true; }
+  return false;
+}
+function prev() { if (state.mode === "node") { render(true); return; } if (state.s > 0) { state.s--; render(true); } }
+function play() {
+  if (state.mode === "node") render(true);
+  if (state.s === FLOWS[state.f].steps.length - 1) { state.s = 0; render(true); }
+  state.playing = true; $("#b-play").textContent = "❚❚ Pause";
+  const tick = () => { state.timer = setTimeout(() => { if (next()) tick(); else stop(); }, +$("#speed").value); };
+  tick();
+}
+function stop() { state.playing = false; clearTimeout(state.timer); $("#b-play").textContent = "▶ Play"; }
+
+$("#b-next").addEventListener("click", () => { stop(); next(); });
+$("#b-prev").addEventListener("click", () => { stop(); prev(); });
+$("#b-play").addEventListener("click", () => state.playing ? stop() : play());
+$("#b-restart").addEventListener("click", () => { stop(); state.s = 0; render(true); });
+$("#speed").addEventListener("change", () => { if (state.playing) { stop(); play(); } });
+diagram.querySelectorAll(".node").forEach(n => n.addEventListener("click", () => showNode(n.dataset.node)));
+$("#console").addEventListener("keydown", e => {
+  if (e.target.tagName === "SELECT") return;
+  if (e.key === "ArrowRight") { stop(); next(); } else if (e.key === "ArrowLeft") { stop(); prev(); }
+});
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => {
+  if (state.mode === "step") drawPath(FLOWS[state.f].steps[state.s].path, false);
+}, 120); });
+render(false);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (state.mode === "step") drawPath(FLOWS[state.f].steps[state.s].path, false); });
+
+/* ------------------------------------------------------------------ */
+/* Review findings                                                     */
+/* ------------------------------------------------------------------ */
+const ISSUES = [
+  { p: "high", t: "No record of what is actually deployed at each site",
+    gap: "\"Which sites have X?\" (F8) and site pages need to know which code runs where. The profile lists this as an open question, but the design depends on it. Without it the KB can only say a site was <i>built for</i>, not that it <i>runs</i> the function, or which version.",
+    fix: "Add a <b>Deployment</b> entity to the link DB (site, repo, tag or commit, date, source). Fill it from release records, installer logs or a small site inventory script. Until then, answers say \"built for\" and show the gap.",
+    refs: "F3 · F8 · §13 Q2" },
+  { p: "high", t: "Data governance is not covered",
+    gap: "Customer specs, NDAs and site data would be copied into an AWS region, and some countries restrict data export. Code may contain passwords and connection strings, which the KB would expose company-wide. Tickets contain personal names.",
+    fix: "Get IT security / legal sign-off on the region before Phase 1. Run <b>gitleaks</b> on code and redact secrets before indexing. Keep a document-level access field in the index even if everything is open today, so restricting one customer later doesn't need a rebuild.",
+    refs: "N1 · \"cross-project visibility allowed\"" },
+  { p: "high", t: "No measurable success criteria; golden set comes too late",
+    gap: "The golden question set is in Phase 4, so Phases 1–3 have no baseline and nothing to decide go/no-go on. Management approval needs to know what \"success\" means.",
+    fix: "Write the 100 golden questions in weeks 1–2 with domain reviewers. Measure today's way of searching as the baseline. Set numeric gates per phase (see <a href=\"#plan\">plan</a>).",
+    refs: "§11 · §12" },
+  { p: "high", t: "Platform is heavy for a POC",
+    gap: "Kubernetes, Vault, Harbor, Airflow/Prefect, RabbitMQ, MinIO, Keycloak and monitoring is a production platform. Setting it up takes weeks of DevOps time before any knowledge work starts.",
+    fix: "Run the POC with <b>Docker Compose on four EC2 servers</b>, plain disk instead of MinIO, Postgres as the job queue, Prefect as the only orchestrator. It stays fully containerized, so it is still portable. Move to Kubernetes in the production phase.",
+    refs: "§7.4 · N1" },
+  { p: "high", t: "Make traceability mechanical, not a prompt instruction",
+    gap: "N3 requires every generated statement to be traceable. Asking the model to cite is not enough; mid-size models still produce unsupported sentences.",
+    fix: "Every card sentence carries a source tag ([T], [A], [C]). A checker verifies that the cited span exists and supports the claim (string match plus a small LLM check). Failures move to \"Gaps & confidence\". Track the failure rate as a gate metric.",
+    refs: "N3 · N4 · §6.2" },
+  { p: "medium", t: "Add a reranker to retrieval",
+    gap: "Hybrid search without reranking often puts the right passage at rank 6–15, outside what the agent reads.",
+    fix: "Add bge-reranker-v2-m3 (multilingual, small) on the top 50 hits. It shares the embedding GPU and costs little.",
+    refs: "§7.2 · D5" },
+  { p: "medium", t: "20 years of attachment formats",
+    gap: "Docling and MarkItDown handle modern Office and PDF well, but old .doc/.xls/.ppt, Outlook .msg, Visio, zip archives and embedded images are common in old tickets.",
+    fix: "Profile the format mix in Phase 0. Convert old binary formats with LibreOffice headless first, unpack archives, extract .msg bodies and attachments. Record unconvertible files as gaps on the card.",
+    refs: "L1" },
+  { p: "medium", t: "Languages of tickets and specs",
+    gap: "Asian sites may write CRs and specs in Chinese, Japanese, Thai, Vietnamese or Malay. That affects OCR packs, embeddings and the LLM choice.",
+    fix: "Sample 200 tickets in Phase 0 to measure the language mix. BGE-M3 is multilingual; choose an LLM that handles the found languages (part of the bake-off). Cards in English, quotes in the original language.",
+    refs: "§13 Q3 · N2" },
+  { p: "medium", t: "Catch duplicates at CR approval, not only in the wiki",
+    gap: "F5 shows similar tickets on ticket pages, but the cost is already spent if the duplicate is found after approval.",
+    fix: "Hourly check of tickets entering IN DEV. LEAD APPROVAL; post a \"similar functions\" note to the ticket or email the approver (flow E in the simulation). This is where the business saving is realized.",
+    refs: "F5 · Goal 4" },
+  { p: "medium", t: "Ticket edit history may not exist for old tickets",
+    gap: "F6 (\"requirement as it was\") needs the ticket's past versions. If FlexPM only exports the current version, history starts on the first download day.",
+    fix: "Check whether FlexPM stores and exports edit history. If not, state on each card from which date history is available, and use the commit date + attachment versions as the best available \"as it was\" view.",
+    refs: "F6 · §3.1" },
+  { p: "medium", t: "Settle the search engine licence now",
+    gap: "Hybrid search features in Elasticsearch depend on the licence tier, which is an open question. It blocks Phase 3 design.",
+    fix: "Use <b>OpenSearch</b> (Apache-2.0), which has keyword, vector and hybrid search without a paid tier, or confirm the Elastic tier in Phase 0.",
+    refs: "§13 Q4 · D5" },
+  { p: "medium", t: "Drop the separate static wiki build",
+    gap: "A static MkDocs build of 20,000+ pages is slow to rebuild incrementally, and review/edit screens will need dynamic pages anyway (D13 already expects the move).",
+    fix: "Render ticket, family, site and capability pages inside the web portal from the start, from the same card store and link DB. One less component.",
+    refs: "D13 · L4" },
+  { p: "medium", t: "Scope the homegrown IDE after the POC",
+    gap: "Building an IDE is a large project of its own and is not needed to prove the knowledge base works.",
+    fix: "In the POC, ship the MCP server and prove IDE use through an existing MCP-capable editor or AI client. Decide on the homegrown IDE with POC results in hand.",
+    refs: "D12 · F11 · Phase 5" },
+  { p: "low", t: "Missing non-functional targets",
+    gap: "No targets for number of users, concurrent users, response times, availability, backup/restore, retention, or how deleted tickets are handled.",
+    fix: "Proposed: search p95 < 1.5 s, first answer token < 5 s, 50 concurrent users, nightly backup with 24 h restore point, deleted tickets kept as tombstones with a banner.",
+    refs: "§4.2" },
+  { p: "low", t: "Stored procedures that live only in site databases",
+    gap: "MES sites often have stored procedures changed directly in the site database. Those copies are invisible to the git mirror.",
+    fix: "Optional: a script that exports procedure definitions from site databases into the mirror as a read-only repo per site. Decide after measuring how common it is.",
+    refs: "F7 · §3.2" },
+  { p: "low", t: "Use spot instances and schedules to control cost",
+    gap: "GPUs running 24/7 cost about 2.5× the office-hours schedule, with little benefit during the POC.",
+    fix: "Run interactive GPUs in office hours plus a nightly window. Run backfills on spot instances; jobs are resumable.",
+    refs: "N1 · §10" }
+];
+const issuesBox = $("#issues");
+ISSUES.forEach((it, i) => {
+  const el = document.createElement("article");
+  el.className = "issue"; el.dataset.p = it.p;
+  el.innerHTML = `<div class="issue-pri"><span class="p">${it.p}</span><span>#${String(i + 1).padStart(2, "0")}</span></div>
+  <div class="issue-body"><h4>${it.t}</h4>
+  <div class="cols"><div><b>Gap</b>${it.gap}</div><div><b>Recommendation</b>${it.fix}</div></div>
+  <div class="refs">Relates to: ${it.refs}</div></div>`;
+  issuesBox.appendChild(el);
+});
+$("#issue-filter").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  $("#issue-filter").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  issuesBox.querySelectorAll(".issue").forEach(el => { el.hidden = b.dataset.f !== "all" && el.dataset.p !== b.dataset.f; });
+});
+
+/* ------------------------------------------------------------------ */
+/* Cost model                                                          */
+/* ------------------------------------------------------------------ */
+const INFRA = [
+  { name: "Data server", spec: "r7i.4xlarge · 16 vCPU · 128 GB", role: "PostgreSQL, search index, Zoekt, file store", rate: 1.058, gpu: false },
+  { name: "Pipeline server", spec: "m7i.4xlarge · 16 vCPU · 64 GB", role: "Normalization, OCR, parsing, Prefect, portal, agent", rate: 0.806, gpu: false },
+  { name: "LLM server", spec: "g6e.2xlarge · 1× L40S 48 GB", role: "vLLM: Ask by day, daily cards by night", rate: 2.242, gpu: true },
+  { name: "Embedding server", spec: "g6.xlarge · 1× L4 24 GB", role: "BGE-M3 embeddings + reranker", rate: 0.805, gpu: true },
+  { name: "Disks + snapshots", spec: "EBS gp3 ~1.5 TB", role: "Raw files, Markdown, indexes, git mirror (est.)", fixed: 180 },
+  { name: "Network", spec: "VPN on EC2 + data transfer", role: "Link to FlexPM / ADO, SSO", fixed: 80 }
+];
+let sched = "biz";
+const money = v => "$" + Math.round(v).toLocaleString("en-US");
+function infraTotal() {
+  const tb = $("#infra tbody"); tb.innerHTML = ""; let total = 0;
+  INFRA.forEach(r => {
+    const h = r.fixed ? null : (r.gpu && sched === "biz" ? 286 : 730);
+    const m = r.fixed ? r.fixed : r.rate * h; total += m;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.name}<small>${r.spec}</small></td><td>${r.role}</td><td class="num">${r.fixed ? "—" : r.rate.toFixed(3)}</td><td class="num">${h ?? "—"}</td><td class="num">${money(m)}</td>`;
+    tb.appendChild(tr);
+  });
+  $("#infra-total").textContent = money(total);
+  return total;
+}
+function backfill() {
+  const n = +$("#c-tickets").value || 0, inT = +$("#c-in").value || 0, outT = +$("#c-out").value || 0;
+  const x = 1 + (+$("#c-extra").value || 0), pre = +$("#c-pre").value || 1, dec = +$("#c-dec").value || 1;
+  const g = +$("#c-gpus").value, price = +$("#c-price").value;
+  const tin = n * inT * x, tout = n * outT * x;
+  const gpuh = (tin / pre + tout / dec) / 3600, wall = gpuh / g, cost = gpuh * price;
+  $("#o-gpuh").textContent = Math.round(gpuh).toLocaleString("en-US");
+  $("#o-wall").textContent = wall < 48 ? Math.round(wall) + " h" : (wall / 24).toFixed(1) + " days";
+  $("#o-cost").textContent = money(cost);
+  $("#o-tokens").textContent = `${(tin / 1e9).toFixed(2)} B input tokens and ${(tout / 1e6).toFixed(0)} M output tokens in total.`;
+  return cost;
+}
+function budget() {
+  const inf = infraTotal() * 3;
+  const run = backfill();
+  const runs = run * 2 + run * (300 / Math.max(+$("#c-tickets").value, 300)) * 3; // 2 full runs + ~3 pilot iterations
+  const cont = (inf + runs) * 0.2, tot = inf + runs + cont;
+  $("#bud-infra").textContent = money(inf);
+  $("#bud-runs").textContent = money(runs);
+  $("#bud-cont").textContent = money(cont);
+  $("#bud-total").textContent = money(tot);
+  // range across both GPU schedules for the summary
+  const save = sched; sched = sched === "biz" ? "247" : "biz";
+  const other = infraTotal() * 3; sched = save; infraTotal();
+  const lo = Math.min(inf, other), hi = Math.max(inf, other);
+  const fmtK = v => Math.round((v + runs) * 1.2 / 1000);
+  const txt = `≈ USD ${fmtK(lo)}–${fmtK(hi)}k AWS for the POC`;
+  $("#ask-budget").textContent = txt;
+  $("#dec-budget").textContent = `Approximately USD ${fmtK(lo)}–${fmtK(hi)}k including 20% contingency (office-hours vs 24/7 GPUs).`;
+}
+$("#sch-biz").addEventListener("click", () => { sched = "biz"; $("#sch-biz").setAttribute("aria-pressed","true"); $("#sch-247").setAttribute("aria-pressed","false"); budget(); });
+$("#sch-247").addEventListener("click", () => { sched = "247"; $("#sch-247").setAttribute("aria-pressed","true"); $("#sch-biz").setAttribute("aria-pressed","false"); budget(); });
+$("#calc").addEventListener("input", budget);
+budget();
+
+/* ------------------------------------------------------------------ */
+/* Gantt                                                               */
+/* ------------------------------------------------------------------ */
+const ROWS = [
+  { n: "Phase 0 · Prep", s: "access, legal, golden set, pilot scope", a: 1, b: 2 },
+  { n: "Phase 1 · Foundation", s: "git mirror, normalize, confirmed links", a: 2, b: 4, gate: 4 },
+  { n: "Phase 2 · Card pilot", s: "300 cards, bake-off, expert review", a: 5, b: 8, ai: true, gate: 8 },
+  { n: "Phase 3 · Search release", s: "search, ticket pages, similar, package", a: 6, b: 10, gate: 10 },
+  { n: "Phase 4 · AI release", s: "Ask, inferred links, clones, MCP", a: 9, b: 13, ai: true, gate: 13 },
+  { n: "Decision report", s: "results, full-backfill cost, go/no-go", a: 14, b: 14, dec: true }
+];
+const g = $("#gantt");
+let h = `<div class="g-wk g-name" style="text-align:left">Week</div>`;
+for (let w = 1; w <= 14; w++) h += `<div class="g-wk">${w}</div>`;
+ROWS.forEach(r => {
+  h += `<div class="g-name">${r.n}<small>${r.s}</small></div>`;
+  for (let w = 1; w <= 14; w++) {
+    if (w >= r.a && w <= r.b) h += `<div class="g-bar${r.ai ? " ai" : ""}${r.dec ? " dec" : ""}${w === r.a ? " first" : ""}${w === r.b ? " last" : ""}"><i></i>${r.gate === w ? `<s class="gd" title="Gate"></s>` : ""}</div>`;
+    else h += `<div></div>`;
+  }
+});
+g.innerHTML = h;
+})();
+</script>
