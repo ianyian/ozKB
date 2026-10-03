@@ -50,7 +50,7 @@ route("", async () => {
   view.innerHTML = `
     <section class="hero">
       <h1>Find any shopfloor function, why it was built, and where it runs.</h1>
-      <p>One place for FlexPM change requests and the code that implemented them, across every site.</p>
+      <p>One place for MyPM change requests and the code that implemented them, across every site.</p>
       ${askBox("")}
       <div class="stat"><span><b>${d.counts.capabilities}</b>functions</span><span><b>${d.counts.sites}</b>sites</span><span><b>${d.counts.cards}</b>knowledge cards</span><span><b>${d.counts.units}</b>code functions indexed</span></div>
     </section>
@@ -214,7 +214,7 @@ route("ticket", async ([task], params) => {
       </div></div>`;
   const tabs = {
     card: () => (c ? card(c.card_md) : `<div class="empty">No knowledge card yet.</div>`),
-    sources: () => `<h3>FlexPM ticket text</h3><pre class="doc">${esc(t.body_md)}</pre>${d.documents.map((x) => `<h3>${esc(x.file_name)} <span class="tag">${x.format}</span></h3><pre class="doc">${esc(x.markdown)}</pre>`).join("")}`,
+    sources: () => `<h3>MyPM ticket text</h3><pre class="doc">${esc(t.body_md)}</pre>${d.documents.map((x) => `<h3>${esc(x.file_name)} <span class="tag">${x.format}</span></h3><pre class="doc">${esc(x.markdown)}</pre>`).join("")}`,
     code: () => d.links.length ? d.links.map((l) => `<div class="hit"><span>${tag(l.tier)}${l.source === "expert" ? ' <span class="tag strong">expert</span>' : ""} <a class="mono" href="#/code?repo=${encodeURIComponent(l.repo)}">${esc(l.repo)}</a> <span class="mono tiny">@${esc((l.commit_sha || "").slice(0, 7))}</span></span><span class="small">${esc(l.message || "")} <span class="muted">· ${esc(l.author || "")} · ${fmtD(l.committed_at)}</span></span><span class="tiny muted">${esc(l.evidence)}</span></div>`).join("") : `<div class="empty">No code linked to this ticket.</div>`,
     history: () => `<h3>Ticket edits</h3>${d.versions.map((v) => `<div class="small">Edit #${v.edit_no} · ${esc(v.state)} · required ${esc(v.required)}</div>`).join("")}<h3 style="margin-top:14px">Card versions</h3>${d.card_versions.map((v) => `<div class="small">v${v.version} · ${esc(v.model)} · ${fmtD(v.generated_at)}</div>`).join("")}`,
   };

@@ -27,7 +27,7 @@ export async function scan(ctx) {
   if (!storeReady()) return { changed: 0, commits: 0 };
   const known = new Map((await q("SELECT path, sha256, size FROM source_files")).map((r) => [r.path, r]));
   let changed = 0;
-  for (const full of [...walk(path.join(SIM_DIR, "flexpm")), ...walk(path.join(SIM_DIR, "repos"))]) {
+  for (const full of [...walk(path.join(SIM_DIR, "mypm")), ...walk(path.join(SIM_DIR, "repos"))]) {
     const p = rel(full);
     const buf = fs.readFileSync(full);
     const h = sha256(buf);
@@ -35,7 +35,7 @@ export async function scan(ctx) {
     if (prev && prev.sha256 === h) continue;
     const parts = p.split("/");
     let kind, task = null, repo = null;
-    if (parts[0] === "flexpm") { task = parts[2]; kind = parts[3] === "ticket.json" ? "ticket" : "attachment"; }
+    if (parts[0] === "mypm") { task = parts[2]; kind = parts[3] === "ticket.json" ? "ticket" : "attachment"; }
     else { repo = parts[1]; kind = /\.(py|js)$/.test(p) ? "code" : null; }
     if (!kind) continue;
     await q(`INSERT INTO source_files (path, kind, task, repo, sha256, size) VALUES ($1,$2,$3,$4,$5,$6)
@@ -105,7 +105,7 @@ async function doTicket(job) {
   await q("INSERT INTO ticket_versions (task, edit_no, snapshot) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING", [t.task, t.edit_no, JSON.stringify(t)]);
   await enqueue("L2", "card", t.task, t.task);
   // A ticket may arrive after code that names it: re-check those repos too.
-  const repos = await q("SELECT DISTINCT repo FROM commits WHERE repo LIKE $1 OR message LIKE $2", [`%FLEXPM${t.cr}-%`, `%${t.task}%`]);
+  const repos = await q("SELECT DISTINCT repo FROM commits WHERE repo LIKE $1 OR message LIKE $2", [`%MYPM${t.cr}-%`, `%${t.task}%`]);
   for (const r of repos) await enqueue("L2", "repo", r.repo, null);
   const last = t.history[t.history.length - 1];
   return { summary: `Normalized ticket ${t.task} (edit #${t.edit_no}, ${t.state})`, edit_no: t.edit_no, state: t.state, chars: body.length, last_change: last.note };

@@ -1,4 +1,4 @@
-// Static catalog for the FlexPM simulator: sites, people and shopfloor capabilities.
+// Static catalog for the MyPM simulator: sites, people and shopfloor capabilities.
 // Everything here is fictional.
 
 export const SITES = [

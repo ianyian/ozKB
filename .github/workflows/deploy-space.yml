@@ -32,7 +32,7 @@ jobs:
           pinned: false
           ---
 
-          Shopfloor KB Hub prototype: FlexPM simulator, L1/L2 schedulers, Neon Postgres index,
+          Shopfloor KB Hub prototype: MyPM simulator, L1/L2 schedulers, Neon Postgres index,
           operations console and knowledge portal. Source: github.com/ianyian/ozKB (prototype/).
           EOF
           sed -i 's/^          //' build/README.md

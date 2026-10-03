@@ -54,7 +54,7 @@ async function l1Run(runId) {
 }
 
 export const schedulers = {
-  SIM: new Scheduler("SIM", "FlexPM simulator", "sim.interval_sec", simTick),
+  SIM: new Scheduler("SIM", "MyPM simulator", "sim.interval_sec", simTick),
   L1: new Scheduler("L1", "L1 · Normalize", "l1.interval_sec", l1Run),
   L2: new Scheduler("L2", "L2 · Cards & links", "l2.interval_sec", (runId) => L2.processBatch(runId)),
 };

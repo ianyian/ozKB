@@ -1,4 +1,4 @@
-// FlexPM simulator scheduler: plays the scripted timeline into the raw store, a few events per tick.
+// MyPM simulator scheduler: plays the scripted timeline into the raw store, a few events per tick.
 import { q, one } from "../db.js";
 import { cfg, log } from "../ops.js";
 import { buildTimeline } from "./timeline.js";

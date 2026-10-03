@@ -18,7 +18,7 @@ The knowledge exists, but it is scattered across two systems:
 
 | System | Holds | Notes |
 |---|---|---|
-| **FlexPM** (in-house) | Change Request (CR) tickets and their tasks, attachments (docs, ppt, pdf, customer specs, drafts), edit history | >20,000 CR tickets; ~200 new per year |
+| **MyPM** (in-house) | Change Request (CR) tickets and their tasks, attachments (docs, ppt, pdf, customer specs, drafts), edit history | >20,000 CR tickets; ~200 new per year |
 | **Azure DevOps** | Source code repos, PRs, commits, builds/artifacts | Many repos, one per task; plus legacy code not linked through PRs |
 
 ## 2. Goal
@@ -35,7 +35,7 @@ Users are **internal only** (company members). Cross-project visibility is allow
 
 ## 3. Source data facts
 
-### 3.1 FlexPM tickets
+### 3.1 MyPM tickets
 
 - Task ID format: `<CR number>-<revision>`, e.g. `121648-01`, `121648-02`.
 - **Revisions** (`-01`, `-02`, …) under the same number represent **newer functionality**. A given revision may serve **different projects** depending on when it was implemented.
@@ -46,15 +46,15 @@ Users are **internal only** (company members). Cross-project visibility is allow
 
 ### 3.2 Source code (Azure DevOps)
 
-- Newer repos follow the naming convention `<Region>-<Customer>-FLEXPM<TaskNumber>-<FeatureName>`, which carries the CR link directly.
+- Newer repos follow the naming convention `<Region>-<Customer>-MYPM<TaskNumber>-<FeatureName>`, which carries the CR link directly.
 - Some code is linked to CRs via PRs / work items; some older code exists "old school" with no PR link.
 - Every piece of code *should* trace back to a CR, but in practice linkage is incomplete.
-- **Plug-and-play reuse:** a CR's code is sometimes applied to other projects **without a new CR**. These copies are invisible in FlexPM and can only be detected from the code itself.
+- **Plug-and-play reuse:** a CR's code is sometimes applied to other projects **without a new CR**. These copies are invisible in MyPM and can only be detected from the code itself.
 - Different versions of the same function run at different sites worldwide.
 
 ### 3.3 Ingestion (already built)
 
-- An in-house downloader app (FlexPM Terminal) downloads tickets and attachments daily, multi-threaded, with run reports and problem tracking.
+- An in-house downloader app (MyPM Terminal) downloads tickets and attachments daily, multi-threaded, with run reports and problem tracking.
 - Observed average: ~2.3 MB of attachments per ticket (sample of 10 tickets).
 - Current change detection: date + size checksum (add content hash).
 - Azure DevOps source download/pre-processing is handled by the same in-house tooling.
@@ -93,7 +93,7 @@ Users are **internal only** (company members). Cross-project visibility is allow
 
 | # | Decision | Reason |
 |---|---|---|
-| D1 | **Knowledge card per task revision** (e.g. `121648-02`) is the central unit | Matches how FlexPM tracks functionality; revisions can serve different projects |
+| D1 | **Knowledge card per task revision** (e.g. `121648-02`) is the central unit | Matches how MyPM tracks functionality; revisions can serve different projects |
 | D2 | Card merges **CR requirement + linked source code logic** into one document, in a skill.md-style format (overview → detail → references) | Agents read the overview first and drill down only when needed |
 | D3 | **Card first, code on demand** — real source code stays indexed and searchable | The card is a lossy summary; exact logic, verification, unexpected questions and unlinked code all need real code |
 | D4 | RAG is the core engine; the wiki is a human-facing view of the same cards | Agent + retrieval answers questions; wiki serves browsing, sharing and downloads |
@@ -124,12 +124,12 @@ Users are **internal only** (company members). Cross-project visibility is allow
 ticket: 121648-02
 cr_family: 121648
 revision: 02
-title: <FlexPM topic>
-project: <FlexPM project>
+title: <MyPM topic>
+project: <MyPM project>
 site: <site>
 customer: <customer>
 region: <region>
-state: <FlexPM state>
+state: <MyPM state>
 owner: <owner>
 dates: { created: , required: , cuat: , last_edit: }
 applies_to_projects: [ ... ]
@@ -162,7 +162,7 @@ Missing specs, inferred links, conflicts between spec and code.
 Marks which statements come from sources vs. interpretation.
 
 ## References
-- FlexPM ticket link
+- MyPM ticket link
 - Attachments (file names, versions)
 - Repo / path / line range / commit for each code reference
 ```
@@ -175,7 +175,7 @@ Special cases: tickets with no code and code with no ticket still get cards, mar
 
 | Layer | Name | Function | Components (POC) | Output |
 |---|---|---|---|---|
-| L0 | **Ingestion** (existing) | Daily download of FlexPM tickets/attachments; git mirror of all repos; run manifest of new/edited/deleted | In-house downloader; `git clone --mirror` + `git fetch`; ADO REST API for repo list | Raw files store + git mirror |
+| L0 | **Ingestion** (existing) | Daily download of MyPM tickets/attachments; git mirror of all repos; run manifest of new/edited/deleted | In-house downloader; `git clone --mirror` + `git fetch`; ADO REST API for repo list | Raw files store + git mirror |
 | L1 | **Normalization** | Docs → Markdown with front-matter; OCR; parse code into functions/procedures; parse repo names; hash-based change detection | Docling or MarkItDown; PaddleOCR or Tesseract; tree-sitter; ScriptDom or sqlglot; Python workers | Normalized MD + parsed code (MinIO) |
 | L2 | **Knowledge cards** | CR↔code linking with confidence; clone detection; generate one card per task revision; review queue | LLM via gateway; AST hashing + MinHash/LSH; versioned card template + prompt | Card MD files + link records |
 | L3 | **Knowledge index** (RAG retrieval) | Link DB as source of truth; generated hierarchical index pages; chunk + embed cards, attachments, code; code search | PostgreSQL; Elasticsearch (self-managed); BGE-M3 embeddings (in-house); Zoekt | Searchable index + index pages |
@@ -274,7 +274,7 @@ Question → read card (Overview → Business/Technical logic)
 
 | Tier | Evidence | Handling |
 |---|---|---|
-| Confirmed | Repo name contains `FLEXPM<id>`; PR or work item links the CR | Used directly |
+| Confirmed | Repo name contains `MYPM<id>`; PR or work item links the CR | Used directly |
 | Strong | CR number in commit message, branch name or code comment | Used, marked strong |
 | Inferred | LLM judges CR text vs. code change, with time / developer / files as hints | Marked inferred; sampled for review |
 | Unlinked | Nothing found | Recorded as a knowledge gap |
@@ -285,7 +285,7 @@ Clone detection (normalized AST hashing + MinHash/LSH, embedding similarity for 
 
 | Item | Estimate |
 |---|---|
-| Raw FlexPM attachments (20k tickets × ~2.3 MB) | ~45–50 GB |
+| Raw MyPM attachments (20k tickets × ~2.3 MB) | ~45–50 GB |
 | Normalized MD | a few GB |
 | Knowledge cards | < 1 GB |
 | Vectors + keyword index | ~20–40 GB (×2 with replica) |
@@ -328,8 +328,8 @@ Phases 1–3 deliver value before any AI answering, which lowers risk for the fi
 
 | Term | Meaning |
 |---|---|
-| CR | Change Request ticket in FlexPM |
-| Task revision | A FlexPM task number with revision suffix, e.g. `121648-02` |
+| CR | Change Request ticket in MyPM |
+| Task revision | A MyPM task number with revision suffix, e.g. `121648-02` |
 | CR family | All revisions sharing the same base number |
 | Knowledge card | One generated Markdown document per task revision combining requirement + code logic |
 | Link DB | PostgreSQL store of tickets, revisions, repos, sites, projects, links, clone groups |

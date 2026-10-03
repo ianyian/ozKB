@@ -1,4 +1,4 @@
-// Builds the scripted FlexPM + source-code timeline from a seed. Pure function: same seed,
+// Builds the scripted MyPM + source-code timeline from a seed. Pure function: same seed,
 // same events, so every demo run (and every rebuild after a restart) tells the same story.
 import { SITES, OWNERS, DEVS, STATES_FLOW, CAPABILITIES, DUPLICATES } from "./catalog.js";
 import { moduleSource, copyWithChanges, utilitySource } from "./codegen.js";
@@ -77,7 +77,7 @@ export function buildTimeline(seed = 42, targetTickets = 100) {
 
   const events = [];
   const legacyRepo = (s) => `${s.region}-${s.customer}-ShopfloorExt`;
-  const flexRepo = (f) => `${f.site.region}-${f.site.customer}-FLEXPM${f.cr}-${f.cap.feature}`;
+  const flexRepo = (f) => `${f.site.region}-${f.site.customer}-MYPM${f.cr}-${f.cap.feature}`;
   const originOf = {};
   const ticketsByFamily = [];
 
@@ -172,7 +172,7 @@ function attachmentPlan(f, k, revText, r) {
 
 function commitMessage(f, k, task, revText, r) {
   const what = k === 1 ? `implement ${f.cap.title.toLowerCase()}` : revText;
-  if (f.style === "confirmed") return `FLEXPM${task}: ${what}`;
+  if (f.style === "confirmed") return `MYPM${task}: ${what}`;
   if (f.style === "legacy-strong") return `CR ${task} ${what}`;
   return r() < 0.5 ? `update ${f.cap.key.replace(/_/g, " ")} module` : `changes for line ${1 + Math.floor(r() * 5)}`;
 }

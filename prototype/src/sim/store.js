@@ -1,4 +1,4 @@
-// Applies simulator events to the raw store (sim-data/): FlexPM ticket exports with
+// Applies simulator events to the raw store (sim-data/): MyPM ticket exports with
 // attachments, plus source repos as sub-folders of one git repository with real commits.
 import fs from "node:fs";
 import path from "node:path";
@@ -17,16 +17,16 @@ function git(args, env = {}) {
 
 export function resetStore() {
   fs.rmSync(SIM_DIR, { recursive: true, force: true });
-  fs.mkdirSync(path.join(SIM_DIR, "flexpm"), { recursive: true });
+  fs.mkdirSync(path.join(SIM_DIR, "mypm"), { recursive: true });
   fs.mkdirSync(path.join(SIM_DIR, "repos"), { recursive: true });
-  // FlexPM is not a git system: its exports sit next to the repos but outside git history.
+  // MyPM is not a git system: its exports sit next to the repos but outside git history.
   // That also keeps commit ids identical when the store is rebuilt by replay after a restart.
-  fs.writeFileSync(path.join(SIM_DIR, ".gitignore"), "flexpm/\n");
-  fs.writeFileSync(path.join(SIM_DIR, "README.md"), "# Simulated raw store\n\n- `flexpm/` – FlexPM ticket exports (one folder per task revision)\n- `repos/` – source repositories (one sub-folder per repo)\n");
+  fs.writeFileSync(path.join(SIM_DIR, ".gitignore"), "mypm/\n");
+  fs.writeFileSync(path.join(SIM_DIR, "README.md"), "# Simulated raw store\n\n- `mypm/` – MyPM ticket exports (one folder per task revision)\n- `repos/` – source repositories (one sub-folder per repo)\n");
   git(["init", "-q", "-b", "main"]);
-  git(["config", "user.name", "FlexPM Export"]);
-  git(["config", "user.email", "flexpm-export@example.com"]);
-  commitAll("Initialize raw store", { name: "FlexPM Export", email: "flexpm-export@example.com" }, "2019-01-01T00:00:00Z");
+  git(["config", "user.name", "MyPM Export"]);
+  git(["config", "user.email", "mypm-export@example.com"]);
+  commitAll("Initialize raw store", { name: "MyPM Export", email: "mypm-export@example.com" }, "2019-01-01T00:00:00Z");
 }
 
 export function storeReady() {
@@ -40,7 +40,7 @@ function commitAll(message, who, atIso) {
   return git(["rev-parse", "HEAD"]);
 }
 
-const ticketDir = (task) => path.join(SIM_DIR, "flexpm", task.split("-")[0], task);
+const ticketDir = (task) => path.join(SIM_DIR, "mypm", task.split("-")[0], task);
 
 export async function applyEvent(ev) {
   if (ev.type === "ticket_new") {
@@ -98,7 +98,7 @@ async function writeAttachment(dir, t, a) {
   if (a.name.endsWith(".docx")) {
     const params = cap.params.map(([n, v, u]) => new Paragraph({ text: `${n.replace(/_/g, " ")}: ${a.rev === "B" ? bump(v) : v} ${u}`, bullet: { level: 0 } }));
     const doc = new Document({
-      creator: "FlexPM", title: `${t.task} specification rev ${a.rev}`,
+      creator: "MyPM", title: `${t.task} specification rev ${a.rev}`,
       sections: [{ children: [
         new Paragraph({ text: `${t.task} ${t.title}`, heading: HeadingLevel.TITLE }),
         new Paragraph({ children: [new TextRun({ text: `Project: ${t.project}   Site: ${t.site}   Revision: ${a.rev}`, italics: true })] }),

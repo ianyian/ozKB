@@ -20,9 +20,9 @@ export const DEFAULT_CONFIG = {
 };
 
 export const CONFIG_HELP = {
-  "sim.seed": "Random seed for the FlexPM simulator. Same seed = same demo story. Applied on Reset.",
+  "sim.seed": "Random seed for the MyPM simulator. Same seed = same demo story. Applied on Reset.",
   "sim.interval_sec": "Seconds between simulator ticks.",
-  "sim.events_per_tick": "FlexPM events (new CR, revision, edit, commit) produced per tick.",
+  "sim.events_per_tick": "MyPM events (new CR, revision, edit, commit) produced per tick.",
   "l1.interval_sec": "Seconds between L1 normalization runs.",
   "l1.batch_size": "Max L1 jobs processed per run.",
   "l2.interval_sec": "Seconds between L2 card/link runs.",

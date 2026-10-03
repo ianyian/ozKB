@@ -100,9 +100,9 @@ portal.get("/api/package/:task", h(async (req, res) => {
   const card = await one("SELECT card_md, version FROM cards WHERE task=$1", [task]);
   const links = await q("SELECT l.*, c.files, c.message FROM links l LEFT JOIN commits c ON c.sha=l.commit_sha WHERE l.task=$1 AND l.status='active'", [task]);
   const zip = new JSZip();
-  const dir = path.join(SIM_DIR, "flexpm", t.cr, task);
+  const dir = path.join(SIM_DIR, "mypm", t.cr, task);
   if (card) zip.file("knowledge-card.md", card.card_md);
-  if (fs.existsSync(path.join(dir, "ticket.json"))) zip.file("flexpm/ticket.json", fs.readFileSync(path.join(dir, "ticket.json")));
+  if (fs.existsSync(path.join(dir, "ticket.json"))) zip.file("mypm/ticket.json", fs.readFileSync(path.join(dir, "ticket.json")));
   const attDir = path.join(dir, "attachments");
   if (fs.existsSync(attDir)) for (const f of fs.readdirSync(attDir)) zip.file(`attachments/${f}`, fs.readFileSync(path.join(attDir, f)));
   const refs = ["tier,repo,commit,file,evidence"];
@@ -113,7 +113,7 @@ portal.get("/api/package/:task", h(async (req, res) => {
     }
   }
   zip.file("references.csv", refs.join("\n"));
-  zip.file("README.txt", `Ticket package ${task} – ${t.title}\nGenerated ${new Date().toISOString()} by KB Hub (prototype).\n\nknowledge-card.md   card v${card ? card.version : "-"} with source tags\nflexpm/ticket.json  ticket as exported from FlexPM, with edit history\nattachments/        original files\ncode/               linked code exactly as it was at each commit\nreferences.csv      links with confidence tier and evidence\n`);
+  zip.file("README.txt", `Ticket package ${task} – ${t.title}\nGenerated ${new Date().toISOString()} by KB Hub (prototype).\n\nknowledge-card.md   card v${card ? card.version : "-"} with source tags\nmypm/ticket.json  ticket as exported from MyPM, with edit history\nattachments/        original files\ncode/               linked code exactly as it was at each commit\nreferences.csv      links with confidence tier and evidence\n`);
   const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
   await log("info", "API", `Ticket package downloaded for ${task} (${(buf.length / 1024).toFixed(0)} KB)`, null, { task });
   res.set({ "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${task}-package.zip"` }).send(buf);
@@ -162,8 +162,8 @@ portal.post("/api/ask", h(async (req, res) => {
   const cite = (s) => { let i = sources.findIndex((x) => x.key === s.key); if (i < 0) { sources.push(s); i = sources.length - 1; } return `[${i + 1}]`; };
 
   // A ticket or CR number anywhere in the question pins the answer to that ticket:
-  // "may i know 128605-01 do?", "what is CR 128605", "FLEXPM128605-01".
-  const idm = question.match(/(?:FLEXPM|CR)?\s*#?(?<!\d)(\d{6})(?:-(\d{2}))?(?!\d)/i);
+  // "may i know 128605-01 do?", "what is CR 128605", "MYPM128605-01".
+  const idm = question.match(/(?:MYPM|CR)?\s*#?(?<!\d)(\d{6})(?:-(\d{2}))?(?!\d)/i);
   const listQ = /\b(which|what|how many|list|where)\b[\s\S]*\b(sites?|plants?|where|else)\b/i.test(question);
   const codeQ = /\b(code|function|implemented|implementation|repo|source)\b/i.test(question) && !/\bwhy\b/i.test(question);
   const type = idm ? (listQ ? "list" : codeQ ? "code" : "ticket") : listQ ? "list" : codeQ ? "code" : "explain";

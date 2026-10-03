@@ -33,7 +33,7 @@ async function refreshStatus() {
     const s = await api("/api/status");
     statusCache = s;
     $("#pills").innerHTML = s.schedulers.map((x) => `<span class="pill ${x.last_error ? "err" : x.busy ? "busy" : x.running ? "on" : "off"}" title="${esc(x.label)}"><i></i>${esc(x.name)} ${x.running ? "running" : "stopped"}</span>`).join("")
-      + `<span class="pill" title="Simulated FlexPM time">${s.sim.cursor}/${s.sim.total} events · ${fmtD(s.sim.sim_clock)}</span>`;
+      + `<span class="pill" title="Simulated MyPM time">${s.sim.cursor}/${s.sim.total} events · ${fmtD(s.sim.sim_clock)}</span>`;
     $("#side-foot").innerHTML = `<span>Database: <b>${s.db === "postgres" ? "Neon Postgres" : "embedded PGlite"}</b></span><span>Card writer: <b>${s.llm.provider === "hf" ? esc(s.llm.model) : "built-in"}</b></span><span>Seed ${s.sim.seed}</span>`;
     const rv = await api("/api/review?status=open");
     $("#rev-count").textContent = rv.length || "";
@@ -65,7 +65,7 @@ route("dashboard", {
   title: "Dashboard",
   async render() {
     view.innerHTML = `
-      <div class="head"><div><h1>Pipeline dashboard</h1><p>Simulated FlexPM and source code flowing through L1 normalization and L2 knowledge cards into the index. Refreshes every 2 seconds.</p></div>
+      <div class="head"><div><h1>Pipeline dashboard</h1><p>Simulated MyPM and source code flowing through L1 normalization and L2 knowledge cards into the index. Refreshes every 2 seconds.</p></div>
         <div class="row"><button class="btn primary" id="d-start">Start all schedulers</button><button class="btn" id="d-stop">Stop all</button></div></div>
       <div class="grid g8" id="d-kpi"></div>
       <div class="card"><h3>Pipeline <span class="small muted">jobs waiting / running at each stage</span></h3><div class="flow" id="d-flow"></div></div>
@@ -88,7 +88,7 @@ route("dashboard", {
       .map(([k, v, cls]) => `<div class="kpi ${cls || ""}"><b>${v}</b><span>${k}</span></div>`).join("");
     const qn = (st, status) => (d.queue.find((x) => x.stage === st && x.status === status) || { n: 0 }).n;
     $("#d-flow").innerHTML = `
-      <div><span class="lbl">FlexPM simulator</span><b>${s.sim.cursor}<span class="small"> / ${s.sim.total}</span></b><span>events played · ${fmtD(s.sim.sim_clock)}</span></div>
+      <div><span class="lbl">MyPM simulator</span><b>${s.sim.cursor}<span class="small"> / ${s.sim.total}</span></b><span>events played · ${fmtD(s.sim.sim_clock)}</span></div>
       <div><span class="lbl">L1 · Normalize</span><b>${qn("L1", "pending")} <span class="small">waiting</span></b><span>${qn("L1", "processing")} running · ${qn("L1", "done")} done · ${qn("L1", "failed")} failed</span></div>
       <div><span class="lbl">L2 · Cards &amp; links</span><b>${qn("L2", "pending")} <span class="small">waiting</span></b><span>${qn("L2", "processing")} running · ${qn("L2", "done")} done · ${qn("L2", "failed")} failed</span></div>
       <div><span class="lbl">L3 · Index</span><b>${c.cards}</b><span>cards searchable · ${c.units} code units</span></div>
@@ -135,7 +135,7 @@ route("console", {
   title: "Control & configuration", nav: "console",
   async render() {
     view.innerHTML = `
-      <div class="head"><div><h1>Control &amp; configuration</h1><p>Start, stop or single-step each scheduler. Reset rewinds the whole demo to an empty knowledge base and a fresh FlexPM timeline, so you can present it again.</p></div>
+      <div class="head"><div><h1>Control &amp; configuration</h1><p>Start, stop or single-step each scheduler. Reset rewinds the whole demo to an empty knowledge base and a fresh MyPM timeline, so you can present it again.</p></div>
         <div class="row" id="admin-row"></div></div>
       <div class="grid g3" id="c-sched"></div>
       <div class="card"><h3>Demo reset</h3>
@@ -345,7 +345,7 @@ route("search", {
 route("tickets", {
   title: "Tickets",
   async render() {
-    view.innerHTML = `<div class="head"><div><h1>Tickets</h1><p>Every FlexPM task revision in the knowledge base, with its card and link confidence.</p></div>
+    view.innerHTML = `<div class="head"><div><h1>Tickets</h1><p>Every MyPM task revision in the knowledge base, with its card and link confidence.</p></div>
       <div class="row"><select id="t-site"><option value="">All sites</option>${["PEN", "SZH", "BKK", "GDL", "AUS", "TIJ"].map((s) => `<option>${s}</option>`).join("")}</select>
       <select id="t-conf"><option value="">Any confidence</option><option>confirmed</option><option>strong</option><option>inferred</option><option>unlinked</option></select></div></div>
       <div class="card tbl-wrap" id="t-table"></div>`;
@@ -394,7 +394,7 @@ route("ticket", {
       <div class="layout-ticket">
         <div class="card"><div class="tabs" id="tk-tabs"><button data-t="card" class="on">Knowledge card</button><button data-t="sources">Sources (${d.documents.length})</button><button data-t="links">Code &amp; links (${d.links.length})</button><button data-t="history">History</button></div><div id="tk-body"></div></div>
         <div class="grid">
-          <div class="card"><h3>FlexPM fields</h3><dl class="kv"><dt>Project</dt><dd>${esc(t.project)}</dd><dt>Site</dt><dd><a href="#/site/${t.site}">${t.site}</a> · ${esc(t.region)}</dd><dt>Customer</dt><dd>${esc(t.customer)}</dd><dt>Owner</dt><dd>${esc(t.owner)}</dd><dt>Priority</dt><dd>${esc(t.priority)}</dd><dt>Created</dt><dd>${fmtD(t.created)}</dd><dt>Required</dt><dd>${fmtD(t.required)}</dd><dt>Edits</dt><dd>${t.edit_no}</dd></dl></div>
+          <div class="card"><h3>MyPM fields</h3><dl class="kv"><dt>Project</dt><dd>${esc(t.project)}</dd><dt>Site</dt><dd><a href="#/site/${t.site}">${t.site}</a> · ${esc(t.region)}</dd><dt>Customer</dt><dd>${esc(t.customer)}</dd><dt>Owner</dt><dd>${esc(t.owner)}</dd><dt>Priority</dt><dd>${esc(t.priority)}</dd><dt>Created</dt><dd>${fmtD(t.created)}</dd><dt>Required</dt><dd>${fmtD(t.required)}</dd><dt>Edits</dt><dd>${t.edit_no}</dd></dl></div>
           <div class="card"><h3>Revision chain</h3>${d.family.map((f) => `<div class="small">${f.task === t.task ? `<b>${f.task}</b>` : `<a href="#/ticket/${f.task}">${f.task}</a>`} ${esc(f.title)} <span class="muted">${esc(f.state)}</span></div>`).join("")}</div>
           <div class="card"><h3>Similar tickets at other sites</h3>${d.similar.length ? d.similar.map((s) => `<div class="small"><a href="#/ticket/${s.task}">${s.task}</a> ${esc(s.title)} <span class="muted">${s.site} · ${Number(s.score).toFixed(2)}</span></div>`).join("") : `<span class="small muted">None above the threshold.</span>`}</div>
           ${d.review.length ? `<div class="card"><h3>Review items</h3>${d.review.map((r) => `<div class="small">${tag(r.status)} <a href="#/review">${esc(r.title)}</a></div>`).join("")}</div>` : ""}
@@ -434,7 +434,7 @@ route("repo", {
   title: "Repository", nav: "tickets", crumb: (a) => `Repositories / ${a[0]}`,
   async render([name]) {
     const d = await api(`/api/repo/${encodeURIComponent(name)}`);
-    view.innerHTML = `<div class="head"><div><h1 class="mono" style="font-size:22px">${esc(name)}</h1><p>${/FLEXPM\d+/.test(name) ? "Named with the FLEXPM convention, so the CR link is confirmed by the repo name." : "Legacy repository without a CR in its name. Links come from commit messages, code similarity or text similarity."}</p></div></div>
+    view.innerHTML = `<div class="head"><div><h1 class="mono" style="font-size:22px">${esc(name)}</h1><p>${/MYPM\d+/.test(name) ? "Named with the MYPM convention, so the CR link is confirmed by the repo name." : "Legacy repository without a CR in its name. Links come from commit messages, code similarity or text similarity."}</p></div></div>
       <div class="grid g2" style="align-items:start">
         <div class="card"><h3>Commits</h3><table><thead><tr><th>Commit</th><th>Message</th><th>Linked to</th></tr></thead><tbody>${d.commits.map((c) => `<tr><td class="mono small">${c.sha.slice(0, 7)}<br><span class="muted">${fmtD(c.committed_at)} ${esc(c.author)}</span></td><td class="small">${esc(c.message)}</td><td>${(c.links || []).map((l) => `<a href="#/ticket/${l.task}">${l.task}</a> ${tag(l.tier)}`).join("<br>") || tag("unlinked")}</td></tr>`).join("")}</tbody></table></div>
         <div class="card"><h3>Code units</h3><table><thead><tr><th>Unit</th><th>Lines</th><th>Clone group</th></tr></thead><tbody>${d.units.map((u) => `<tr><td><a class="mono" href="#/code/${u.id}">${esc(u.name)}</a><br><span class="small muted">${esc(u.path)}</span></td><td class="small">${u.start_line}-${u.end_line}</td><td class="small">${u.group_id ? `CG-${String(u.group_id).padStart(4, "0")} ${tag(u.role, u.role === "origin" ? "confirmed" : "inferred")}` : "—"}</td></tr>`).join("")}</tbody></table></div></div>`;

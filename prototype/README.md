@@ -6,7 +6,7 @@ A working mini version of the Shopfloor KB Hub proposal (`docs/project-profile.m
 
 | Layer | In this prototype |
 |---|---|
-| **FlexPM (simulated)** | Scripted timeline of 100 task revisions: new CRs, revision +1, ticket edits, with .docx/.pdf/.md attachments. Sample Python/Node repos with real git commits, including plug-and-play copies, independent duplicates and tickets with no code. Same seed = same story every run. |
+| **MyPM (simulated)** | Scripted timeline of 100 task revisions: new CRs, revision +1, ticket edits, with .docx/.pdf/.md attachments. Sample Python/Node repos with real git commits, including plug-and-play copies, independent duplicates and tickets with no code. Same seed = same story every run. |
 | **L1 · Normalize** (scheduler) | Scans the raw store, SHA-256 change detection, one job per change (before → processing → done/failed). docx/pdf/md → Markdown, code → function-level units with MinHash fingerprints. |
 | **L2 · Cards & links** (scheduler) | CR↔commit links with confidence (confirmed / strong / inferred), clone groups, similar tickets and duplicate flags, one knowledge card per task revision built from the code *as it was* at the linked commit. Every card statement carries a source tag. |
 | **L3 · Index** | Postgres (Neon in the cloud, embedded PGlite locally): link DB, cards, documents and code with full-text search. |
@@ -47,7 +47,7 @@ Part 1 – the engineer's view (start here; run the pipeline beforehand so data 
 Part 2 – how it is kept up to date (`/ops/`):
 
 1. **Control & configuration → Reset demo.** Everything is empty.
-2. **Dashboard → Start all schedulers.** FlexPM events start arriving; L1 and L2 queues fill and drain.
+2. **Dashboard → Start all schedulers.** MyPM events start arriving; L1 and L2 queues fill and drain.
 3. **Job monitor.** Click a job: before/after of one ticket or file, plus its log lines.
 4. **Logs.** Filter by ticket to show the trace from simulator to card.
 5. **Tickets → 118256-01.** Card with source tags, revision chain, and the inferred plug-and-play copy at GDL. Compare with 118256-03: different code, because each card shows the code as it was for that revision.

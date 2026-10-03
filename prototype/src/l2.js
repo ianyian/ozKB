@@ -7,7 +7,7 @@ import { writeCard } from "./cards.js";
 
 const MIN_CLONE_TOKENS = 30;
 
-const TASK_RE = /(?:FLEXPM|CR)\s*#?(\d{6})-(\d{2})/i;
+const TASK_RE = /(?:MYPM|CR)\s*#?(\d{6})-(\d{2})/i;
 
 export async function processBatch(runId) {
   const jobs = await claim("L2", cfg("l2.batch_size"), runId);
@@ -50,7 +50,7 @@ async function doRepo(job, ctx) {
 }
 
 async function linkCommit(repo, c) {
-  const flex = repo.match(/FLEXPM(\d{6})/);
+  const flex = repo.match(/MYPM(\d{6})/);
   const m = c.message.match(TASK_RE);
   const exists = async (t) => !!(await one("SELECT 1 FROM tickets WHERE task=$1", [t]));
   // Confirmed: repo name carries the CR and the commit names the revision (or the revision is chosen by date).
@@ -61,7 +61,7 @@ async function linkCommit(repo, c) {
       task = r && r.task;
     }
     if (task && (await exists(task))) {
-      await upsertLink(task, repo, c.sha, "confirmed", m ? `Repo name contains FLEXPM${flex[1]}; commit message names ${task}` : `Repo name contains FLEXPM${flex[1]}; revision chosen by commit date`, 1);
+      await upsertLink(task, repo, c.sha, "confirmed", m ? `Repo name contains MYPM${flex[1]}; commit message names ${task}` : `Repo name contains MYPM${flex[1]}; revision chosen by commit date`, 1);
       return { task, tier: "confirmed" };
     }
     return { task: null, tier: "waiting for ticket" };

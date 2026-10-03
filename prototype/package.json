@@ -2,7 +2,7 @@
   "name": "kbhub-prototype",
   "version": "0.1.0",
   "private": true,
-  "description": "Shopfloor KB Hub mini ecosystem: FlexPM simulator, L1/L2 schedulers, Postgres index, operations console and knowledge portal.",
+  "description": "Shopfloor KB Hub mini ecosystem: MyPM simulator, L1/L2 schedulers, Postgres index, operations console and knowledge portal.",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",

@@ -327,10 +327,10 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
   <div>
     <div class="eyebrow">POC proposal · for technical review and approval · 1 Oct 2026</div>
     <h1>Shopfloor <span>KB Hub</span></h1>
-    <p class="lede">One searchable knowledge base that connects every FlexPM change request to the code that implemented it, across every site. Engineers can find a function, see why it was built, see where else it runs, and catch duplicates before they are built again. Everything runs on self-hosted, open-weight software that can move from rented AWS servers to company hardware.</p>
+    <p class="lede">One searchable knowledge base that connects every MyPM change request to the code that implemented it, across every site. Engineers can find a function, see why it was built, see where else it runs, and catch duplicates before they are built again. Everything runs on self-hosted, open-weight software that can move from rented AWS servers to company hardware.</p>
   </div>
   <div class="facts" role="list">
-    <div class="fact" role="listitem"><b>20,000+</b><span>FlexPM CR tickets, ~200 new per year</span></div>
+    <div class="fact" role="listitem"><b>20,000+</b><span>MyPM CR tickets, ~200 new per year</span></div>
     <div class="fact" role="listitem"><b>~46 GB</b><span>raw attachments (20k × ~2.3 MB)</span></div>
     <div class="fact" role="listitem"><b>1000s</b><span>on-prem shopfloor instances, Asia + Americas</span></div>
     <div class="fact" role="listitem"><b>20+ yrs</b><span>of history; many original authors have left</span></div>
@@ -351,7 +351,7 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
       <ul>
         <li>~5 FTE for 14 weeks plus 3 domain reviewers at ~10%.</li>
         <li>Rented EC2 only: 2 CPU servers, 2 GPU servers, disks. No managed cloud services.</li>
-        <li>Approval to copy FlexPM + Azure DevOps data into an AWS region (or use a company server instead).</li>
+        <li>Approval to copy MyPM + Azure DevOps data into an AWS region (or use a company server instead).</li>
         <li>Five decisions, listed in <a href="#plan">the plan</a>.</li>
       </ul>
     </div>
@@ -368,7 +368,7 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
   <div class="two">
     <div class="panel-plain">
       <h3>The problem</h3>
-      <p><b>FlexPM</b> holds the <i>why</i>: CR tickets, revisions like <code>121648-02</code>, specs, slides, customer drafts and edit history. <b>Azure DevOps</b> holds the <i>how</i>: repos, PRs, commits. The link between them is complete only for newer repos named <code>&lt;Region&gt;-&lt;Customer&gt;-FLEXPM&lt;Task&gt;-&lt;Feature&gt;</code>. Older code has partial or no links, and code is often copied to other sites with no new CR at all.</p>
+      <p><b>MyPM</b> holds the <i>why</i>: CR tickets, revisions like <code>121648-02</code>, specs, slides, customer drafts and edit history. <b>Azure DevOps</b> holds the <i>how</i>: repos, PRs, commits. The link between them is complete only for newer repos named <code>&lt;Region&gt;-&lt;Customer&gt;-MYPM&lt;Task&gt;-&lt;Feature&gt;</code>. Older code has partial or no links, and code is often copied to other sites with no new CR at all.</p>
       <p>The result: engineers can't find existing functions, can't explain old code after its author leaves, and build the same thing twice.</p>
       <h3>What engineers must be able to do</h3>
       <ol class="outcomes">
@@ -383,7 +383,7 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
       <h3>What makes this hard</h3>
       <div class="hard">
         <div><b>Incomplete linkage</b><span>Only part of the code is linked to a CR. The system must infer the rest and say clearly that it is inferred (N4, D7).</span></div>
-        <div><b>Invisible copies</b><span>Plug-and-play reuse leaves no trace in FlexPM. It can only be found by comparing code itself (F7, clone detection).</span></div>
+        <div><b>Invisible copies</b><span>Plug-and-play reuse leaves no trace in MyPM. It can only be found by comparing code itself (F7, clone detection).</span></div>
         <div><b>"As it was" answers</b><span>The requirement and code at implementation time, not today's version. Needs commit-level links and ticket edit history (F6, D8).</span></div>
         <div><b>Complete lists</b><span>"Which sites have X?" needs every site, not the top 5 search hits. Vector search alone can't do this, so a link database answers it (F8, D5).</span></div>
         <div><b>Self-hosted only</b><span>No managed AI or search services. Open-weight models on our own GPUs, portable to company servers (N1, N2).</span></div>
@@ -419,13 +419,13 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
 
       <div class="layer src"><div class="layer-label"><b>SOURCES</b><span>Existing systems</span></div>
         <div class="nodes">
-          <button class="node existing" data-node="flexpm">FlexPM<small>CR tickets</small></button>
+          <button class="node existing" data-node="mypm">MyPM<small>CR tickets</small></button>
           <button class="node existing" data-node="ado">Azure DevOps<small>repos · PRs</small></button>
           <button class="node existing" data-node="legacy">Legacy code<small>TFVC · shares</small></button>
         </div></div>
       <div class="layer"><div class="layer-label"><b>L0</b><span>Ingestion</span></div>
         <div class="nodes">
-          <button class="node existing" data-node="downloader">FlexPM Terminal<small>existing downloader</small></button>
+          <button class="node existing" data-node="downloader">MyPM Terminal<small>existing downloader</small></button>
           <button class="node" data-node="mirror">Git mirror<small>bare clones</small></button>
           <button class="node" data-node="manifest">Run manifest<small>new · edited · deleted</small></button>
         </div></div>
@@ -512,7 +512,7 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
     <p>Historical linkage is messy, so we never present a guess as fact. Each link records how we know it. The example below shows one function's real-world life: built, revised, copied without a CR, and rebuilt independently at another site.</p>
   </div>
   <div class="tiers">
-    <div class="tier"><span class="conf confirmed">CONFIRMED</span><p>Repo name contains <code>FLEXPM&lt;id&gt;</code>, or a PR / work item links the CR.</p><div class="use">Shown as fact.</div></div>
+    <div class="tier"><span class="conf confirmed">CONFIRMED</span><p>Repo name contains <code>MYPM&lt;id&gt;</code>, or a PR / work item links the CR.</p><div class="use">Shown as fact.</div></div>
     <div class="tier"><span class="conf strong">STRONG</span><p>CR number in a commit message, branch name or code comment. Also: an expert confirmed an inferred link.</p><div class="use">Shown, marked strong.</div></div>
     <div class="tier"><span class="conf inferred">INFERRED</span><p>LLM compares CR text with the code change, using time, developer and files as hints. Or clone detection finds a copy.</p><div class="use">Marked inferred; sampled weekly for review.</div></div>
     <div class="tier"><span class="conf unlinked">UNLINKED</span><p>No evidence found on either side.</p><div class="use">Recorded as a knowledge gap, still gets a card.</div></div>
@@ -532,7 +532,7 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
       <rect x="20" y="52" width="200" height="74" rx="6" class="svg-box"/>
       <text x="32" y="74" class="svg-ink" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600">CR 121648-01</text>
       <text x="32" y="93" class="svg-ink" font-family="IBM Plex Sans, sans-serif" font-size="12">Reprint needs supervisor badge</text>
-      <text x="32" y="111" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11.5">Site PEN · repo FLEXPM121648</text>
+      <text x="32" y="111" class="svg-muted" font-family="IBM Plex Sans, sans-serif" font-size="11.5">Site PEN · repo MYPM121648</text>
 
       <!-- CR 121648-02 -->
       <rect x="250" y="52" width="210" height="74" rx="6" class="svg-box"/>
@@ -597,7 +597,7 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
     <p>The profile is well thought out. The points below are what I would change or add. High items affect whether the POC answers the business question or whether we are allowed to run it at all.</p>
   </div>
   <div class="strengths">
-    <div><b>KEEP</b>One card per task revision, revision chain, card history. Matches how FlexPM actually works.</div>
+    <div><b>KEEP</b>One card per task revision, revision chain, card history. Matches how MyPM actually works.</div>
     <div><b>KEEP</b>Three stores (link DB, search, code search). Each fixes a real weakness of vector-only RAG.</div>
     <div><b>KEEP</b>Confidence tiers with evidence, and links to commits rather than files.</div>
     <div><b>KEEP</b>One incremental pipeline; backfill is a replay. No two systems that disagree.</div>
@@ -790,10 +790,10 @@ footer .wrap { border-top: 1px solid var(--line); padding-top: 16px; display: gr
     <div><span>Phase 0</span><p>Domain reviewers for links, cards and capability pages?</p></div>
     <div><span>Phase 1</span><p>Format of legacy (non-PR) code: TFVC, SVN, file shares?</p></div>
     <div><span>Phase 0</span><p>May customer documents be stored in an AWS region? Any customer NDA or country export rules? <em>new</em></p></div>
-    <div><span>Phase 1</span><p>Does FlexPM export full edit history, or only the current version? <em>new</em></p></div>
+    <div><span>Phase 1</span><p>Does MyPM export full edit history, or only the current version? <em>new</em></p></div>
     <div><span>Phase 1</span><p>Mix of attachment formats: old Office, .msg, Visio, zip, scans? <em>new</em></p></div>
     <div><span>Phase 1</span><p>Are stored procedures at sites also kept in repos, or only in site databases? <em>new</em></p></div>
-    <div><span>Phase 3</span><p>Can the KB write a "similar tickets" note back into FlexPM (API)? <em>new</em></p></div>
+    <div><span>Phase 3</span><p>Can the KB write a "similar tickets" note back into MyPM (API)? <em>new</em></p></div>
     <div><span>Phase 3</span><p>Expected users, concurrent users and response-time targets? <em>new</em></p></div>
     <div><span>Phase 0</span><p>Is Azure DevOps cloud (dev.azure.com) or Server on-prem? Network path from AWS? <em>new</em></p></div>
     <div><span>Phase 5</span><p>Homegrown IDE: build now, or start with MCP for existing tools? <em>new</em></p></div>
@@ -828,10 +828,10 @@ function setHTML(el, str) {
 /* Component info (shown when a node is clicked)                       */
 /* ------------------------------------------------------------------ */
 const NODES = {
-  flexpm: { layer: "Source", name: "FlexPM", text: "In-house CR system. Holds tickets, task revisions, attachments and edit history. >20,000 tickets, ~200 new per year.", why: "<b>Read-only for the KB.</b> The only write-back proposed is an optional \"similar tickets\" note (flow E)." },
+  mypm: { layer: "Source", name: "MyPM", text: "In-house CR system. Holds tickets, task revisions, attachments and edit history. >20,000 tickets, ~200 new per year.", why: "<b>Read-only for the KB.</b> The only write-back proposed is an optional \"similar tickets\" note (flow E)." },
   ado: { layer: "Source", name: "Azure DevOps", text: "Source repos, PRs, commits, work items. The REST API gives the repo list and PR ↔ work-item links.", why: "<b>Low load:</b> the KB reads from its own git mirror, not from ADO, except for the repo list and PR metadata." },
   legacy: { layer: "Source", name: "Legacy code", text: "Older code not in ADO git or not linked through PRs (TFVC, SVN, file shares).", why: "<b>Imported once</b> into the same git mirror, so one code store serves all tools." },
-  downloader: { layer: "L0", name: "FlexPM Terminal (existing)", text: "Existing multi-threaded downloader: daily tickets and attachments, run reports, problem tracking.", why: "<b>Change needed:</b> add a SHA-256 content hash next to date + size, and emit the run manifest." },
+  downloader: { layer: "L0", name: "MyPM Terminal (existing)", text: "Existing multi-threaded downloader: daily tickets and attachments, run reports, problem tracking.", why: "<b>Change needed:</b> add a SHA-256 content hash next to date + size, and emit the run manifest." },
   mirror: { layer: "L0", name: "Git mirror", text: "Bare clones of every repo (git clone --mirror), updated with a daily git fetch. Full history stays local.", why: "<b>Enables \"as it was\":</b> blame → commit → CR works offline and fast. POC indexes the default/release branch only." },
   manifest: { layer: "L0", name: "Run manifest", text: "One file per run listing new, edited and deleted tickets plus new commits and repos.", why: "<b>Single input</b> for everything downstream. A backfill is just a very large manifest (D9)." },
   hash: { layer: "L1", name: "Hash check", text: "Compares content hashes with the last run and drops anything unchanged.", why: "<b>Keeps daily runs small:</b> typically a few dozen files instead of thousands." },
@@ -839,7 +839,7 @@ const NODES = {
   ocr: { layer: "L1", name: "OCR", text: "PaddleOCR (Tesseract as fallback) for scanned PDFs and images inside documents.", why: "<b>Runs on GPU when available;</b> scans are the slowest part of normalization." },
   codeparse: { layer: "L1", name: "Code parser", text: "tree-sitter for C#/Java/JS etc.; ScriptDom or sqlglot for SQL. Splits code into functions and stored procedures, each with a normalized AST hash.", why: "<b>Function-level units</b> are what search, clone detection and citations refer to." },
   linker: { layer: "L2", name: "CR ↔ code linker", text: "Links each task revision to commits with a confidence tier: repo name / PR (confirmed), commit or branch text (strong), LLM judgement (inferred).", why: "<b>Commit-level links</b> (D8) allow \"requirement at that moment\"." },
-  clone: { layer: "L2", name: "Clone detector", text: "Normalized AST hashing for exact copies; MinHash/LSH for modified variants; embeddings of CR text for independent re-implementations.", why: "<b>Finds plug-and-play copies</b> that FlexPM never saw, and collapses copies in search results." },
+  clone: { layer: "L2", name: "Clone detector", text: "Normalized AST hashing for exact copies; MinHash/LSH for modified variants; embeddings of CR text for independent re-implementations.", why: "<b>Finds plug-and-play copies</b> that MyPM never saw, and collapses copies in search results." },
   cardgen: { layer: "L2", name: "Card generator", text: "Writes one Markdown card per task revision from a versioned template and prompt, via the LLM gateway.", why: "<b>Every statement carries a source tag</b> ([T] ticket, [A] attachment, [C] code) that a checker verifies." },
   cards: { layer: "L2", name: "Card store", text: "Versioned card files. Edit history of the ticket is kept inside the card. Expert-edited sections are pinned.", why: "<b>Human edits survive</b> regeneration (F10)." },
   review: { layer: "L2", name: "Review queue", text: "Low-confidence links, new clone groups, reviewed pages whose sources changed, and user feedback.", why: "<b>Turns expert time into better links:</b> a confirmed inferred link becomes strong." },
@@ -871,10 +871,10 @@ const html = (label, body, right) => ({ kind: "html", label, body, right });
 const FLOWS = [
 { id: "A", name: "Daily update", intro: "<b>Every night at 02:00.</b> New and edited tickets and new commits flow through all layers. Only what changed is reprocessed. In this run ticket <code>121648-02</code> was edited and a copy of its code was found at another site.",
   steps: [
-  { path: ["flexpm","downloader"], layer: "L0", title: "Download new and edited tickets",
-    text: "The existing FlexPM Terminal pulls tickets created or edited since the last run, with their attachments. It now also records a SHA-256 hash for each file.",
+  { path: ["mypm","downloader"], layer: "L0", title: "Download new and edited tickets",
+    text: "The existing MyPM Terminal pulls tickets created or edited since the last run, with their attachments. It now also records a SHA-256 hash for each file.",
     why: "<b>Why add a hash:</b> date + size misses edits that keep the same size, and re-downloads files that only got a new timestamp.",
-    sample: code("flexpm-run-2026-10-01.json", `{
+    sample: code("mypm-run-2026-10-01.json", `{
   "run_id": "2026-10-01T02:00Z",
   "tickets": {
     "new":     ["134410-01", "134411-01", "134412-01"],
@@ -893,7 +893,7 @@ const FLOWS = [
 repos with changes      12
 new commits             47
 new repos                1
-  + APAC-KESTREL-FLEXPM134410-TraySerialCheck
+  + APAC-KESTREL-MYPM134410-TraySerialCheck
 elapsed             6m 12s`) },
   { path: ["downloader","manifest","mirror"], layer: "L0", title: "Write one run manifest",
     text: "Ticket changes and commit changes are merged into one manifest. Everything downstream reads only this file.",
@@ -901,7 +901,7 @@ elapsed             6m 12s`) },
     sample: code("manifest-2026-10-01.json (excerpt)", `{
   "tickets_changed": 8,
   "commits": [
-    { "repo": "APAC-KESTREL-FLEXPM121648-LabelReprintAuth",
+    { "repo": "APAC-KESTREL-MYPM121648-LabelReprintAuth",
       "sha": "c41d7a0", "msg": "CR 121648-02 fix audit insert" },
     { "repo": "AMER-HALCYON-ShopfloorExt",
       "sha": "e91d04a", "msg": "label reprint changes for GDL" }
@@ -934,7 +934,7 @@ audit log with operator, supervisor and reason.`) },
     text: "Changed files from the new commits are parsed into units: functions, classes, stored procedures. Each unit gets a normalized AST hash (names and whitespace removed) for clone detection.",
     why: "<b>Units, not files,</b> are what search returns and what citations point to: repo, path, line range, commit.",
     sample: code("unit: usp_Label_Reprint", `{
-  "repo": "APAC-KESTREL-FLEXPM121648-LabelReprintAuth",
+  "repo": "APAC-KESTREL-MYPM121648-LabelReprintAuth",
   "path": "db/procs/usp_Label_Reprint.sql",
   "lines": [12, 141],
   "commit": "c41d7a0",
@@ -948,13 +948,13 @@ audit log with operator, supervisor and reason.`) },
     text: "Each new commit is linked with the strongest evidence available. Here the repo name gives a confirmed link and the commit message adds a strong one. The second repo has no CR evidence at all.",
     why: "<b>Links to commits, not files (D8).</b> Later, blame on any line leads to the commit, then to the CR as it was at that time.",
     sample: html("link records", `<table class="mini"><thead><tr><th>Commit</th><th>CR</th><th>Tier</th><th>Evidence</th></tr></thead><tbody>
-<tr><td>c41d7a0</td><td>121648-02</td><td><span class="conf confirmed">confirmed</span></td><td>repo name FLEXPM121648</td></tr>
+<tr><td>c41d7a0</td><td>121648-02</td><td><span class="conf confirmed">confirmed</span></td><td>repo name MYPM121648</td></tr>
 <tr><td>c41d7a0</td><td>121648-02</td><td><span class="conf strong">strong</span></td><td>msg "CR 121648-02"</td></tr>
 <tr><td>e91d04a</td><td>—</td><td><span class="conf unlinked">unlinked</span></td><td>no CR in repo, msg, branch</td></tr></tbody></table>`) },
   { path: ["codeparse","clone","linkdb"], layer: "L2", title: "Find copies across repos",
     text: "The unlinked commit changed a procedure that is 91% similar to the one in CR 121648-02's repo. It is a modified variant: same structure, reprint limit changed from 2 to 5. That is a plug-and-play copy, now visible.",
     why: "<b>This is the only way</b> to find code reused without a new CR. The link is stored as inferred until an expert confirms it.",
-    sample: code("clone group CG-0412", `origin   APAC-KESTREL-FLEXPM121648-LabelReprintAuth
+    sample: code("clone group CG-0412", `origin   APAC-KESTREL-MYPM121648-LabelReprintAuth
          db/procs/usp_Label_Reprint.sql @ 7f3c9e2
 member   AMER-HALCYON-ShopfloorExt
          sql/usp_Label_Reprint.sql     @ e91d04a
@@ -988,9 +988,9 @@ Max 2 reprints per unit. [A1 §4.2][C1 L48-55]
 Modified copy at GDL (limit 5), no CR. [C2] INFERRED
 
 ## References
-[T1] FlexPM 121648-02, edit 4 (2026-09-30)
+[T1] MyPM 121648-02, edit 4 (2026-09-30)
 [A1] QSP-114_revD.docx §4.2
-[C1] …FLEXPM121648…/usp_Label_Reprint.sql L12-141 @c41d7a0
+[C1] …MYPM121648…/usp_Label_Reprint.sql L12-141 @c41d7a0
 [C2] AMER-HALCYON-ShopfloorExt/sql/usp_Label_Reprint.sql @e91d04a`) },
   { path: ["cards","linkdb","search","embed","indexpages"], layer: "L3", title: "Update the index",
     text: "Link records are upserted. Only the changed card sections are re-embedded. Index pages for CR family 121648 and sites PEN, SZH and GDL are re-rendered from the link DB.",
@@ -1098,7 +1098,7 @@ units after uncontrolled reprints. [T1][A2]`) },
 <li><b>AUS</b>: separate implementation, CR 133902-01 <span class="conf confirmed">confirmed</span> <span class="cite">T3</span></li>
 </ul>
 <p><b>Why the limit:</b> a 2021 customer audit found duplicate serial labels on shipped units after uncontrolled reprints. The spec (QSP-114 §4.2) set a maximum of 2 reprints with supervisor approval <span class="cite">A1</span> <span class="cite">A2</span>, implemented at line 48 <span class="cite">C1</span>.</p>
-<div class="srcs"><span>T1 FlexPM 121648-02 · A1 QSP-114_revD §4.2 · A2 audit_finding_scan p.3</span><span>C1 …FLEXPM121648…/usp_Label_Reprint.sql L48-55 @c41d7a0 · C2 AMER-HALCYON…@e91d04a · T3 133902-01</span></div>
+<div class="srcs"><span>T1 MyPM 121648-02 · A1 QSP-114_revD §4.2 · A2 audit_finding_scan p.3</span><span>C1 …MYPM121648…/usp_Label_Reprint.sql L48-55 @c41d7a0 · C2 AMER-HALCYON…@e91d04a · T3 133902-01</span></div>
 </div>`) },
   { path: ["agent","portal","user","trace"], layer: "L6", title: "Show sources and collect feedback",
     text: "Citations open the card, document section or code lines. The whole interaction is logged. Thumbs down or \"wrong link\" goes to the review queue.",
@@ -1204,10 +1204,10 @@ kb-v1 retained until 2026-10-08`) }
 
 { id: "E", name: "Duplicate check", proposed: true, intro: "<b>My proposed addition.</b> The biggest saving comes from catching a duplicate before it is built. When a new CR reaches dev-lead approval, the KB shows similar functions that already exist.",
   steps: [
-  { path: ["flexpm","downloader"], layer: "L0", title: "A new CR is created",
+  { path: ["mypm","downloader"], layer: "L0", title: "A new CR is created",
     text: "CR 134412-01 \"Supervisor approval for label reprint, Austin line 2\" is created and moves to IN DEV. LEAD APPROVAL.",
     why: "<b>Timing matters:</b> after approval, the team has already started building.",
-    sample: code("FlexPM 134412-01", `Topic:   Supervisor approval for label reprint – line 2
+    sample: code("MyPM 134412-01", `Topic:   Supervisor approval for label reprint – line 2
 Project: MES_AUS_ORION_L2 Line 2 rollout [P-23110]
 State:   IN DEV. LEAD APPROVAL
 Owner:   r.patel`) },
@@ -1222,9 +1222,9 @@ Owner:   r.patel`) },
 <tr><td>121648-02 Reprint limit + supervisor</td><td>0.88</td><td>PEN, SZH, GDL (copy)</td></tr>
 <tr><td>133902-01 Reprint approval workflow</td><td>0.81</td><td>AUS (same site!)</td></tr>
 <tr><td>119230-01 Label print audit trail</td><td>0.64</td><td>PEN</td></tr></tbody></table>`) },
-  { path: ["similar","flexpm","expert"], layer: "L4 → Source", title: "Tell the dev lead before approval",
-    text: "A note with the matches is posted to the ticket (if FlexPM allows it) or emailed to the approver.",
-    why: "<b>Needs one FlexPM write permission</b> or email; see open questions.",
+  { path: ["similar","mypm","expert"], layer: "L4 → Source", title: "Tell the dev lead before approval",
+    text: "A note with the matches is posted to the ticket (if MyPM allows it) or emailed to the approver.",
+    why: "<b>Needs one MyPM write permission</b> or email; see open questions.",
     sample: html("note on 134412-01", `<div class="note-box"><b>Similar functions already exist.</b> 133902-01 at the same site (AUS) does reprint approval and is in production. 121648-02 adds a reprint limit. Consider reusing 133902-01. <a href="#linking">Open comparison</a></div>`) },
   { path: ["expert","linkdb"], layer: "L3", title: "Reuse is recorded, not hidden",
     text: "The lead approves reuse of 133902-01. Because the new CR now points to the reused code, the copy is a confirmed link from day one instead of an invisible plug-and-play copy.",
@@ -1411,8 +1411,8 @@ const ISSUES = [
     fix: "Hourly check of tickets entering IN DEV. LEAD APPROVAL; post a \"similar functions\" note to the ticket or email the approver (flow E in the simulation). This is where the business saving is realized.",
     refs: "F5 · Goal 4" },
   { p: "medium", t: "Ticket edit history may not exist for old tickets",
-    gap: "F6 (\"requirement as it was\") needs the ticket's past versions. If FlexPM only exports the current version, history starts on the first download day.",
-    fix: "Check whether FlexPM stores and exports edit history. If not, state on each card from which date history is available, and use the commit date + attachment versions as the best available \"as it was\" view.",
+    gap: "F6 (\"requirement as it was\") needs the ticket's past versions. If MyPM only exports the current version, history starts on the first download day.",
+    fix: "Check whether MyPM stores and exports edit history. If not, state on each card from which date history is available, and use the commit date + attachment versions as the best available \"as it was\" view.",
     refs: "F6 · §3.1" },
   { p: "medium", t: "Settle the search engine licence now",
     gap: "Hybrid search features in Elasticsearch depend on the licence tier, which is an open question. It blocks Phase 3 design.",
@@ -1464,7 +1464,7 @@ const INFRA = [
   { name: "LLM server", spec: "g6e.2xlarge · 1× L40S 48 GB", role: "vLLM: Ask by day, daily cards by night", rate: 2.242, gpu: true },
   { name: "Embedding server", spec: "g6.xlarge · 1× L4 24 GB", role: "BGE-M3 embeddings + reranker", rate: 0.805, gpu: true },
   { name: "Disks + snapshots", spec: "EBS gp3 ~1.5 TB", role: "Raw files, Markdown, indexes, git mirror (est.)", fixed: 180 },
-  { name: "Network", spec: "VPN on EC2 + data transfer", role: "Link to FlexPM / ADO, SSO", fixed: 80 }
+  { name: "Network", spec: "VPN on EC2 + data transfer", role: "Link to MyPM / ADO, SSO", fixed: 80 }
 ];
 let sched = "biz";
 const money = v => "$" + Math.round(v).toLocaleString("en-US");

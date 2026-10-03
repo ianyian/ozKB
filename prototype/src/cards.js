@@ -90,12 +90,12 @@ export async function writeCard(t, sims, ctx) {
   ].join("\n");
   const gaps = [
     !links.length ? "- No code is linked to this ticket. The code may be missing, unlinked, or not built yet." : null,
-    links.some((l) => l.tier === "inferred") ? "- Some links are INFERRED (not stated in FlexPM or commits). Verify before relying on them." : null,
+    links.some((l) => l.tier === "inferred") ? "- Some links are INFERRED (not stated in MyPM or commits). Verify before relying on them." : null,
     !spec ? "- No specification document attached." : null,
     /NOT IMPLEMENTED/.test(t.state) ? "- Ticket state is NOT IMPLEMENTED." : null,
   ].filter(Boolean).join("\n") || "- None detected.";
   const refs = [
-    `[T1] FlexPM ${t.task}, edit #${t.edit_no} (${String(t.last_edit ? new Date(t.last_edit).toISOString() : "").slice(0, 10)})`,
+    `[T1] MyPM ${t.task}, edit #${t.edit_no} (${String(t.last_edit ? new Date(t.last_edit).toISOString() : "").slice(0, 10)})`,
     ...A.map((d) => `[${d.tag}] ${d.file_name} (${d.format})`),
     ...C.map((u) => `[${u.tag}] ${u.repo}/${u.path} L${u.start_line}-${u.end_line} @${(u.commit_sha || "").slice(0, 7)}`),
   ].map((r) => `- ${r}`).join("\n");

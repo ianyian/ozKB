@@ -1,6 +1,6 @@
 # Shopfloor KB Hub
 
-A knowledge base that connects every FlexPM change request (CR) to the code that implemented it, across every shopfloor site. Engineers can find a function, see **why** it was built, see **where else** it runs, and catch **duplicates** before building the same thing again.
+A knowledge base that connects every MyPM change request (CR) to the code that implemented it, across every shopfloor site. Engineers can find a function, see **why** it was built, see **where else** it runs, and catch **duplicates** before building the same thing again.
 
 This repository holds the proposal and a working **prototype** that runs the whole process end to end on simulated data, so the idea can be shown to management before the real project is approved.
 
@@ -38,10 +38,10 @@ This repository holds the proposal and a working **prototype** that runs the who
 
 The company's MES platform runs on thousands of on-premises instances across Asia and the Americas, built up over 20+ years. The knowledge behind it is split:
 
-- **FlexPM** holds the *why*: CR tickets, revisions such as `121648-02`, specs, slides and customer documents.
+- **MyPM** holds the *why*: CR tickets, revisions such as `121648-02`, specs, slides and customer documents.
 - **Azure DevOps** holds the *how*: repositories, pull requests and commits.
 
-Only newer repos (named `<Region>-<Customer>-FLEXPM<id>-<Feature>`) link cleanly to a CR. Older code is linked partly or not at all, and code is often copied to another site with no CR ("plug-and-play"). When the original developer leaves, nobody can say why the code exists, and the same function gets built again elsewhere.
+Only newer repos (named `<Region>-<Customer>-MYPM<id>-<Feature>`) link cleanly to a CR. Older code is linked partly or not at all, and code is often copied to another site with no CR ("plug-and-play"). When the original developer leaves, nobody can say why the code exists, and the same function gets built again elsewhere.
 
 ## Features
 
@@ -54,15 +54,15 @@ The portal is the end-user front end at `/`.
 | **Ask** | Answers questions in plain language with numbered citations to tickets, documents and code. A panel shows how the answer was found, step by step (`classify → search_kb → which_sites → get_card → …`). |
 | ↳ *Which sites…?* | Lists every site with a function, read from the link database rather than top-N search, so the list is complete within known links. Includes plug-and-play copies without a CR and similar functions built separately, plus a note on how many commits are still unlinked. |
 | ↳ *Why…?* | Explains the original requirement and reason, the business rules with their limits, and how the function evolved over revisions. |
-| ↳ *Ticket questions* | A ticket or CR number anywhere in the question (`128605-01`, `CR 128605`, `FLEXPM128605-01`) pins the answer to that ticket: what it does, the rules, the code as it was, revisions and other sites. |
+| ↳ *Ticket questions* | A ticket or CR number anywhere in the question (`128605-01`, `CR 128605`, `MYPM128605-01`) pins the answer to that ticket: what it does, the rules, the code as it was, revisions and other sites. |
 | ↳ *Where is the code…?* | Lists the functions involved, with copies collapsed into one line each. |
 | ↳ Grounded by default | Answers are assembled from the data, with no model, so they cannot invent facts. Off-topic questions get "nothing found". An optional open-weight model on Hugging Face can rewrite answers while keeping the citations. |
 | **Search** | Full-text search over knowledge cards, attachments and code. Ticket and CR numbers jump straight to the page. Code copies are collapsed into one result per clone group. |
 | **Functions** | One page per shopfloor function: every site that has it, each revision and what it added, plug-and-play copies with no CR, and look-alikes built separately elsewhere. |
 | **Check before you build** | Paste the requirement of a new CR. The result is "probably exists already", "something similar exists" or "no similar function", with the matching tickets, sites and link confidence. Meant for the dev-lead approval step, before anyone starts building. |
 | **Code → requirement** | Pick a file and click any line to see the commit that last changed it, the CR behind it, why it was built, and where the same code lives elsewhere, even when the author has left. This stands in for the planned IDE plug-in. |
-| **Ticket pages** | The knowledge card with source tags, the original FlexPM text and attachments, linked code with evidence, edit history, revisions and similar tickets at other sites. |
-| ↳ *Ticket package* | One zip with the knowledge card, the FlexPM ticket export with history, the original attachments, the linked code exactly as it was at each commit, and a references file. |
+| **Ticket pages** | The knowledge card with source tags, the original MyPM text and attachments, linked code with evidence, edit history, revisions and similar tickets at other sites. |
+| ↳ *Ticket package* | One zip with the knowledge card, the MyPM ticket export with history, the original attachments, the linked code exactly as it was at each commit, and a references file. |
 | ↳ *Feedback* | "Wrong link", "Outdated card" and 👍/👎 on answers go to the review queue for a domain expert. |
 
 ### Operations console
@@ -71,7 +71,7 @@ The operations console is at `/ops/`, for whoever runs the system.
 
 | Feature | What it does |
 |---|---|
-| **Dashboard** | Counts, the pipeline flow (FlexPM → L1 → L2 → index → review) with waiting and running jobs per stage, a throughput chart, cards by link confidence, recent runs and errors. Refreshes every 2 seconds. |
+| **Dashboard** | Counts, the pipeline flow (MyPM → L1 → L2 → index → review) with waiting and running jobs per stage, a throughput chart, cards by link confidence, recent runs and errors. Refreshes every 2 seconds. |
 | **Control & configuration** | Start, stop or single-step each scheduler. Every setting has help text, and every change is saved with who and when. **Reset demo** rewinds everything. **Reset and load full demo** plays all 100 tickets at full speed. |
 | **Job monitor** | Each detected change becomes a job that moves from *before* (pending) to *processing* to *done* or *failed*. Click a job to see its input, output, error and log lines. Failed jobs can be retried. |
 | **Logs** | Structured logs from the simulator, L1, L2, indexing and admin actions. Filter by level, source, ticket or text, with a live tail and a full trace per ticket. |
@@ -83,7 +83,7 @@ The operations console is at `/ops/`, for whoever runs the system.
 
 | Stage | What it does |
 |---|---|
-| **FlexPM simulator** | A scripted, seeded timeline of 100 task revisions (new CRs, revision +1, ticket edits), with `.docx`, `.pdf` and `.md` attachments and small Python/Node repositories committed to git. It deliberately includes plug-and-play copies, functions rebuilt independently at another site, legacy repos without CR names, and tickets with no code. The same seed always tells the same story, so the demo is repeatable. |
+| **MyPM simulator** | A scripted, seeded timeline of 100 task revisions (new CRs, revision +1, ticket edits), with `.docx`, `.pdf` and `.md` attachments and small Python/Node repositories committed to git. It deliberately includes plug-and-play copies, functions rebuilt independently at another site, legacy repos without CR names, and tickets with no code. The same seed always tells the same story, so the demo is repeatable. |
 | **L1 · Normalize** (scheduler) | Scans the raw store and detects changes by SHA-256, then queues one job per change. Converts docx/pdf/md to Markdown, keeps every ticket edit as a version, and splits code into function-level units with fingerprints. |
 | **L2 · Cards & links** (scheduler) | Links commits to CRs with a confidence tier and evidence (see below), and groups code copies into clone groups. Finds similar tickets and flags cross-site duplicates. Writes **one knowledge card per task revision**, using the code **as it was** at the linked commit (`git show <sha>:<file>`), not today's version. |
 | **L3 · Index** | Postgres holds the link database, cards, documents and code, with full-text search. |
@@ -92,7 +92,7 @@ The operations console is at `/ops/`, for whoever runs the system.
 
 | Tier | Evidence | Shown as |
 |---|---|---|
-| Confirmed | Repo name contains `FLEXPM<cr>`, and the commit names the revision (or the revision is chosen by date) | Fact |
+| Confirmed | Repo name contains `MYPM<cr>`, and the commit names the revision (or the revision is chosen by date) | Fact |
 | Strong | CR number in the commit message, or an expert approved an inferred link | Strong |
 | Inferred | Code is a copy of code that belongs to a CR (code similarity), or the commit text matches a ticket | Inferred, sent for review |
 | Unlinked | No evidence | Knowledge gap, sent for review |
@@ -104,7 +104,7 @@ The operations console is at `/ops/`, for whoever runs the system.
 ```mermaid
 flowchart LR
   subgraph Sources
-    F[FlexPM simulator<br/>tickets + attachments]
+    F[MyPM simulator<br/>tickets + attachments]
     G[Git repos<br/>Python / Node]
   end
   subgraph Pipeline
@@ -126,13 +126,13 @@ flowchart LR
   P -. feedback .-> O
 ```
 
-One Node.js process serves the API and both web front ends, and runs the three schedulers. Postgres is Neon in the cloud and embedded PGlite on a laptop; the code is the same. The raw store is a folder: FlexPM exports sit next to a git repository whose sub-folders are the source repos.
+One Node.js process serves the API and both web front ends, and runs the three schedulers. Postgres is Neon in the cloud and embedded PGlite on a laptop; the code is the same. The raw store is a folder: MyPM exports sit next to a git repository whose sub-folders are the source repos.
 
 ## Prototype vs. production
 
 | Area | Production design (proposal) | Prototype |
 |---|---|---|
-| FlexPM | Existing downloader app, ~20,000 tickets | Seeded simulator, 100 tickets |
+| MyPM | Existing downloader app, ~20,000 tickets | Seeded simulator, 100 tickets |
 | Source code | Git mirror of all Azure DevOps repos | One git repo with sub-folders per repo |
 | Search | Elasticsearch/OpenSearch hybrid (keyword + vector), Zoekt for code | Postgres full-text search |
 | Clone detection | AST hashing + MinHash/LSH | Token MinHash with exact-hash check |
@@ -178,7 +178,7 @@ All settings are edited in the Ops console and stored in the database, with a ch
 | Setting | Default | Meaning |
 |---|---|---|
 | `sim.seed` | 42 | Simulator seed; the same seed gives the same demo story (applied on reset) |
-| `sim.interval_sec` / `sim.events_per_tick` | 4 / 2 | How fast FlexPM events arrive |
+| `sim.interval_sec` / `sim.events_per_tick` | 4 / 2 | How fast MyPM events arrive |
 | `l1.interval_sec` / `l1.batch_size` | 3 / 12 | L1 schedule and batch size |
 | `l2.interval_sec` / `l2.batch_size` | 4 / 10 | L2 schedule and batch size |
 | `demo.item_delay_ms` | 250 | Artificial delay per job, so you can watch jobs move through *processing* |
@@ -240,7 +240,7 @@ About 15 minutes. Load the full demo beforehand: in the cloud it takes about 12 
 **Part 2 — how it stays up to date** (`/ops/`)
 
 1. **Control & configuration → Reset demo**: everything is empty.
-2. **Dashboard → Start all schedulers**: FlexPM events arrive, and the L1 and L2 queues fill and drain.
+2. **Dashboard → Start all schedulers**: MyPM events arrive, and the L1 and L2 queues fill and drain.
 3. **Job monitor**: open a job and show its before/after and log lines.
 4. **Logs**: filter by one ticket to trace it from the simulator to its card.
 5. **Review queue**: approve an inferred link. L2 regenerates the card with an expert-confirmed link.
@@ -263,7 +263,7 @@ prototype/
     ops.js                  config, logs, runs, job queue
     db.js · schema.sql      Postgres (Neon) or PGlite
     text.js                 hashing, MinHash, TF-IDF
-    sim/                    FlexPM simulator: catalog, timeline, code generator, raw store
+    sim/                    MyPM simulator: catalog, timeline, code generator, raw store
     cli.js                  headless reset / full demo run
   public/                   engineer portal (index.html, portal.js, portal.css)
   public/ops/               operations console (index.html, app.js, style.css)
@@ -273,7 +273,7 @@ prototype/
 
 ## Limitations
 
-- **Simulated data.** The simulator stands in for FlexPM and Azure DevOps; the real downloader and git mirror are not connected.
+- **Simulated data.** The simulator stands in for MyPM and Azure DevOps; the real downloader and git mirror are not connected.
 - **Data lives in the container.** The raw store is in the container and is rebuilt by replaying the same events after a restart. Commit IDs stay identical; Word and PDF files are regenerated.
 - **Search.** Full-text only, with no vector search, and copies are collapsed by clone group.
 - **Answers.** Grounded rather than model-written unless Hugging Face credits are available.

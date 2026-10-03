@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS sim_state (
   seed          int NOT NULL,
   cursor        int NOT NULL DEFAULT 0,     -- next event index in the scripted timeline
   total_events  int NOT NULL DEFAULT 0,
-  sim_clock     timestamptz,                -- simulated "FlexPM time"
+  sim_clock     timestamptz,                -- simulated "MyPM time"
   reset_at      timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS runs (
