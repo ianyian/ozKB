@@ -137,15 +137,18 @@ async function detectClones(repo, ctx) {
       const sim = exact ? 1 : minhashSim(a.minhash, b.minhash);
       if (!exact && sim < thr) continue;
       const [origin, copy] = new Date(a.committed_at) <= new Date(b.committed_at) ? [a, b] : [b, a];
-      // One group per origin unit; a copy joins the group of the code it was copied from.
+      // One group per original: a copy (or a copy of a copy) joins the group its source already belongs to.
       const g = await one("SELECT id AS group_id FROM clone_groups WHERE origin_unit=$1", [origin.id])
-        || await one("SELECT group_id FROM clone_members WHERE unit_id=$1 AND role='origin'", [origin.id]);
+        || await one("SELECT group_id FROM clone_members WHERE unit_id=$1 ORDER BY group_id LIMIT 1", [origin.id])
+        || await one("SELECT group_id FROM clone_members WHERE unit_id=$1 ORDER BY group_id LIMIT 1", [copy.id]);
       let gid = g && g.group_id;
       if (!gid) {
         gid = (await one("INSERT INTO clone_groups (origin_unit, label) VALUES ($1,$2) RETURNING id", [origin.id, `${origin.name}`])).id;
         await log("info", "L2", `New clone group CG-${String(gid).padStart(4, "0")} for ${origin.name}`, { origin: `${origin.repo}/${origin.path}` }, ctx);
       }
-      await q("INSERT INTO clone_members (group_id, unit_id, role, similarity) VALUES ($1,$2,'origin',1) ON CONFLICT DO NOTHING", [gid, origin.id]);
+      const originInGroup = await one("SELECT 1 FROM clone_members WHERE unit_id=$1", [origin.id]);
+      if (!originInGroup) await q("INSERT INTO clone_members (group_id, unit_id, role, similarity) VALUES ($1,$2,'origin',1) ON CONFLICT DO NOTHING", [gid, origin.id]);
+      if (await one("SELECT 1 FROM clone_members WHERE unit_id=$1 AND group_id<>$2", [copy.id, gid])) continue;
       await q("INSERT INTO clone_members (group_id, unit_id, role, similarity) VALUES ($1,$2,$3,$4) ON CONFLICT (group_id, unit_id) DO UPDATE SET similarity=$4, role=$3",
         [gid, copy.id, exact ? "exact" : "variant", sim]);
       found.push(`${a.name} ~ ${b.repo}/${b.name} (${exact ? "exact" : sim.toFixed(2)})`);
@@ -184,8 +187,9 @@ async function similar(t) {
     await q("INSERT INTO similar_tickets (task_a, task_b, score) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING", [t.task, s.task, s.score]);
     const sameCap = await one("SELECT (a.capability = b.capability) same FROM tickets a, tickets b WHERE a.task=$1 AND b.task=$2", [t.task, s.task]);
     if (s.score >= cfg("similar.duplicate_threshold") && s.site !== t.site && !(sameCap && sameCap.same)) {
-      const pair = [t.task, s.task].sort().join("~");
-      await review("duplicate", pair, t.task, `Possible duplicate: ${t.task} (${t.site}) and ${s.task} (${s.site})`, { a: t.task, b: s.task, score: s.score, a_title: t.title, b_title: s.title });
+      // One flag per pair of CR families, not per revision.
+      const pair = [t.cr, s.task.split("-")[0]].sort().join("~");
+      await review("duplicate", pair, t.task, `Possible duplicate: CR ${t.cr} (${t.site}) and CR ${s.task.split("-")[0]} (${s.site})`, { a: t.task, b: s.task, score: s.score, a_title: t.title, b_title: s.title });
     }
   }
   return top;

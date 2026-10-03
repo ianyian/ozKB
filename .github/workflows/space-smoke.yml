@@ -1,0 +1,44 @@
+name: space-smoke
+# End-to-end check of the deployed Space against Neon: reset, run the schedulers for two minutes,
+# verify data flowed through every layer, then stop and reset so the demo starts clean.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [deploy-space]
+    types: [completed]
+jobs:
+  smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      URL: https://yianxingjian-ozkb.hf.space
+      KEY: ${{ secrets.ADMIN_PASSWORD }}
+    steps:
+      - name: Smoke test
+        run: |
+          set -e
+          post() { curl -sf -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "${2:-{}}"; echo; }
+          for i in $(seq 1 30); do curl -sf "$URL/api/health" && break; sleep 10; done; echo
+          post /api/admin/reset
+          post /api/config '{"sim.events_per_tick": 6, "sim.interval_sec": 2, "demo.item_delay_ms": 50}'
+          post /api/scheduler/all/start > /dev/null
+          sleep 120
+          post /api/scheduler/all/stop > /dev/null
+          sleep 10
+          curl -sf "$URL/api/dashboard" > d.json
+          python3 - <<'EOF'
+          import json
+          d = json.load(open("d.json")); c = d["counts"]
+          print("counts:", c); print("queue:", d["queue"]); print("cards by confidence:", d["tiers"])
+          assert c["tickets"] > 10 and c["cards"] > 10 and c["commits"] > 5, "pipeline did not produce data"
+          assert c["errors1h"] == 0, "errors were logged"
+          print("SMOKE OK")
+          EOF
+          curl -sf "$URL/api/search?q=label%20reprint" | python3 -c 'import json,sys; r=json.load(sys.stdin)["results"]; print("search:", len(r["cards"]), "cards,", len(r["code"]), "code,", len(r["docs"]), "docs")'
+      - name: Reset to a clean demo with default settings
+        if: always()
+        run: |
+          post() { curl -s -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "${2:-{}}"; echo; }
+          post /api/scheduler/all/stop
+          post /api/config '{"sim.events_per_tick": 2, "sim.interval_sec": 4, "demo.item_delay_ms": 250}'
+          post /api/admin/reset
