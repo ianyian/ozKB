@@ -19,6 +19,9 @@ export function resetStore() {
   fs.rmSync(SIM_DIR, { recursive: true, force: true });
   fs.mkdirSync(path.join(SIM_DIR, "flexpm"), { recursive: true });
   fs.mkdirSync(path.join(SIM_DIR, "repos"), { recursive: true });
+  // FlexPM is not a git system: its exports sit next to the repos but outside git history.
+  // That also keeps commit ids identical when the store is rebuilt by replay after a restart.
+  fs.writeFileSync(path.join(SIM_DIR, ".gitignore"), "flexpm/\n");
   fs.writeFileSync(path.join(SIM_DIR, "README.md"), "# Simulated raw store\n\n- `flexpm/` – FlexPM ticket exports (one folder per task revision)\n- `repos/` – source repositories (one sub-folder per repo)\n");
   git(["init", "-q", "-b", "main"]);
   git(["config", "user.name", "FlexPM Export"]);
@@ -52,8 +55,7 @@ export async function applyEvent(ev) {
       record.attachments.push(a.name);
     }
     fs.writeFileSync(path.join(dir, "ticket.json"), JSON.stringify(record, null, 2));
-    const sha = commitAll(`FlexPM export: ${t.task} created`, { name: "FlexPM Export", email: "flexpm-export@example.com" }, ev.atIso);
-    return { summary: `New ${t.rev === 1 ? "CR" : "revision"} ${t.task}: ${t.title}`, sha, task: t.task };
+    return { summary: `New ${t.rev === 1 ? "CR" : "revision"} ${t.task}: ${t.title}`, task: t.task };
   }
   if (ev.type === "ticket_edit") {
     const dir = ticketDir(ev.task);
@@ -76,8 +78,7 @@ export async function applyEvent(ev) {
     rec.last_edit = ev.atIso;
     rec.history.push({ edit_no: rec.edit_no, at: ev.atIso, note: ev.note, changes: changed });
     fs.writeFileSync(file, JSON.stringify(rec, null, 2));
-    const sha = commitAll(`FlexPM export: ${ev.task} edit ${rec.edit_no}`, { name: "FlexPM Export", email: "flexpm-export@example.com" }, ev.atIso);
-    return { summary: `Edit #${rec.edit_no} of ${ev.task}: ${changed.join("; ") || "no field change"}`, sha, task: ev.task };
+    return { summary: `Edit #${rec.edit_no} of ${ev.task}: ${changed.join("; ") || "no field change"}`, task: ev.task };
   }
   if (ev.type === "code") {
     for (const [p, src] of Object.entries(ev.files)) {

@@ -2,23 +2,50 @@
 // technical logic, variants, history, gaps and references. Every statement carries a source tag:
 // [T1] ticket, [A#] attachment, [C#] code. The built-in writer is rule-based (no model cost);
 // provider "hf" asks an open-weight model on Hugging Face to write the Overview and Business logic.
+import { execFileSync } from "node:child_process";
 import { q, one } from "./db.js";
 import { cfg, log } from "./ops.js";
+import { SIM_DIR } from "./sim/store.js";
+import { parsePython, parseJs } from "./l1.js";
 
 const TIER_ORDER = ["confirmed", "strong", "inferred"];
+
+async function unitsAtCommits(links) {
+  const byKey = new Map();
+  const commits = links.filter((l) => l.commit_sha).sort((a, b) => new Date(a.committed_at) - new Date(b.committed_at));
+  for (const l of commits) {
+    const c = await one("SELECT files FROM commits WHERE sha=$1", [l.commit_sha]);
+    for (const file of (c && c.files) || []) {
+      if (!/\.(py|js)$/.test(file)) continue;
+      let src;
+      try { src = execFileSync("git", ["show", `${l.commit_sha}:repos/${l.repo}/${file}`], { cwd: SIM_DIR, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }); } catch { continue; }
+      const lang = file.endsWith(".py") ? "python" : "javascript";
+      for (const u of lang === "python" ? parsePython(src) : parseJs(src)) {
+        byKey.set(`${l.repo}/${file}/${u.name}`, { repo: l.repo, path: file, name: u.name, kind: u.kind, lang, start_line: u.start, end_line: u.end, commit_sha: l.commit_sha, doc: u.doc, body: u.body });
+      }
+    }
+  }
+  return [...byKey.values()];
+}
 
 export async function writeCard(t, sims, ctx) {
   const docs = await q("SELECT file_name, format, markdown FROM documents WHERE task=$1 ORDER BY file_name", [t.task]);
   const links = await q("SELECT l.*, c.message, c.committed_at, c.author FROM links l LEFT JOIN commits c ON c.sha=l.commit_sha WHERE l.task=$1 AND l.status='active' ORDER BY c.committed_at", [t.task]);
   const repos = [...new Set(links.map((l) => l.repo))];
-  const units = repos.length ? await q("SELECT * FROM code_units WHERE repo = ANY($1) ORDER BY repo, path, start_line", [repos]) : [];
+  // Code AS IT WAS at the linked commits (git show <sha>:<file>), not today's version of the repo.
+  // Inferred code goes under "Variants & reuse" unless it is the only code this ticket has.
+  const solid = links.filter((l) => l.tier !== "inferred");
+  const units = await unitsAtCommits(solid.length ? solid : links);
+  const inferredElsewhere = solid.length ? links.filter((l) => l.tier === "inferred") : [];
+  const current = units.length ? await q("SELECT id, repo, path, name FROM code_units WHERE repo = ANY($1)", [repos]) : [];
+  for (const u of units) u.id = (current.find((c) => c.repo === u.repo && c.path === u.path && c.name === u.name) || {}).id;
   const family = await q("SELECT task, title, state FROM tickets WHERE cr=$1 ORDER BY rev", [t.cr]);
   const versions = await q("SELECT edit_no, snapshot->'history' AS history FROM ticket_versions WHERE task=$1 ORDER BY edit_no DESC LIMIT 1", [t.task]);
   const clones = units.length ? await q(`
       SELECT DISTINCT g.id, g.label, u2.repo, u2.path, u2.name, cm2.role, cm2.similarity
         FROM clone_members cm JOIN clone_groups g ON g.id=cm.group_id
         JOIN clone_members cm2 ON cm2.group_id=g.id JOIN code_units u2 ON u2.id=cm2.unit_id
-       WHERE cm.unit_id = ANY($1) AND u2.repo <> ALL($2) ORDER BY g.id`, [units.map((u) => u.id), repos]) : [];
+       WHERE cm.unit_id = ANY($1) AND u2.repo <> ALL($2) ORDER BY g.id`, [units.map((u) => u.id).filter(Boolean), repos]) : [];
 
   const best = TIER_ORDER.find((tier) => links.some((l) => l.tier === tier)) || "unlinked";
   const A = docs.map((d, i) => ({ ...d, tag: `A${i + 1}` }));
@@ -52,6 +79,7 @@ export async function writeCard(t, sims, ctx) {
   const variants = [
     prev ? `- Previous revision: ${prev.task} (${prev.title})` : null,
     next ? `- Next revision: ${next.task} (${next.title})` : null,
+    ...inferredElsewhere.map((l) => `- INFERRED reuse in ${l.repo} @${(l.commit_sha || "").slice(0, 7)}: ${l.evidence}`),
     ...groupClones(clones).map((g) => `- Clone group CG-${String(g.id).padStart(4, "0")} (${g.label}): ${g.members.join("; ")}`),
     ...sims.slice(0, 3).map((s) => `- Similar requirement: ${s.task} at ${s.site} (${s.score.toFixed(2)}) – ${s.title}`),
   ].filter(Boolean).join("\n") || "None found.";
@@ -70,7 +98,7 @@ export async function writeCard(t, sims, ctx) {
     `[T1] FlexPM ${t.task}, edit #${t.edit_no} (${String(t.last_edit ? new Date(t.last_edit).toISOString() : "").slice(0, 10)})`,
     ...A.map((d) => `[${d.tag}] ${d.file_name} (${d.format})`),
     ...C.map((u) => `[${u.tag}] ${u.repo}/${u.path} L${u.start_line}-${u.end_line} @${(u.commit_sha || "").slice(0, 7)}`),
-  ].join("\n");
+  ].map((r) => `- ${r}`).join("\n");
 
   const fm = [
     "---", `ticket: ${t.task}`, `cr_family: ${t.cr}`, `revision: ${String(t.rev).padStart(2, "0")}`, `title: ${t.title}`, `project: ${t.project}`,

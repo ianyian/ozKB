@@ -1,0 +1,91 @@
+name: deploy-space
+# Deploys prototype/ to the Hugging Face Space as a Docker app, wired to Neon via DATABASE_URL.
+# Secret values are copied from GitHub secrets into Space secrets; they are never printed.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/awesome-planck-ug9fj1]
+    paths: [prototype/**, .github/workflows/deploy-space.yml]
+concurrency: deploy-space
+env:
+  SPACE: YianXingJian/ozKB
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q "huggingface_hub>=0.25"
+      - name: Build Space folder
+        run: |
+          mkdir -p build
+          cp -r prototype/src prototype/public prototype/package.json prototype/package-lock.json prototype/Dockerfile prototype/.dockerignore build/
+          cat > build/README.md <<'EOF'
+          ---
+          title: KB Hub Prototype
+          emoji: 🏭
+          colorFrom: yellow
+          colorTo: gray
+          sdk: docker
+          app_port: 7860
+          pinned: false
+          ---
+
+          Shopfloor KB Hub prototype: FlexPM simulator, L1/L2 schedulers, Neon Postgres index,
+          operations console and knowledge portal. Source: github.com/ianyian/ozKB (prototype/).
+          EOF
+          sed -i 's/^          //' build/README.md
+      - name: Set Space secrets and upload
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          python - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["SPACE"]
+          if not os.environ.get("DATABASE_URL"):
+              raise SystemExit("DATABASE_URL secret is missing")
+          api.add_space_secret(space, "DATABASE_URL", os.environ["DATABASE_URL"])
+          api.add_space_secret(space, "HF_TOKEN", os.environ["HF_TOKEN"])
+          if os.environ.get("ADMIN_PASSWORD"):
+              api.add_space_secret(space, "ADMIN_PASSWORD", os.environ["ADMIN_PASSWORD"])
+              print("Admin password: set")
+          else:
+              print("Admin password: not set (console actions are open)")
+          info = api.upload_folder(folder_path="build", repo_id=space, repo_type="space",
+                                   commit_message=f"Deploy prototype from GitHub {os.environ.get('GITHUB_SHA','')[:7]}")
+          print("Uploaded:", info)
+          EOF
+      - name: Wait for the Space to run
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'EOF'
+          import os, time, urllib.request, json
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["SPACE"]
+          stage = None
+          for i in range(60):
+              rt = api.get_space_runtime(space)
+              if rt.stage != stage:
+                  stage = rt.stage; print(f"{i*15:>4}s stage: {stage}")
+              if stage == "RUNNING": break
+              if stage in ("BUILD_ERROR", "RUNTIME_ERROR", "CONFIG_ERROR"):
+                  print("Space failed:", rt.raw.get("errorMessage")); raise SystemExit(1)
+              time.sleep(15)
+          host = space.lower().replace("/", "-").replace("_", "-")
+          url = f"https://{host}.hf.space"
+          for i in range(20):
+              try:
+                  h = json.load(urllib.request.urlopen(url + "/api/health", timeout=20))
+                  print("Health:", h); print("App URL:", url); break
+              except Exception as e:
+                  print("waiting for app:", e); time.sleep(10)
+          else:
+              raise SystemExit("App did not answer /api/health")
+          EOF
