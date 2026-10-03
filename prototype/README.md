@@ -8,8 +8,8 @@ A working mini version of the Shopfloor KB Hub proposal (`docs/project-profile.m
 | **L1 · Normalize** (scheduler) | Scans the raw store, SHA-256 change detection, one job per change (before → processing → done/failed). docx/pdf/md → Markdown, code → function-level units with MinHash fingerprints. |
 | **L2 · Cards & links** (scheduler) | CR↔commit links with confidence (confirmed / strong / inferred), clone groups, similar tickets and duplicate flags, one knowledge card per task revision built from the code *as it was* at the linked commit. Every card statement carries a source tag. |
 | **L3 · Index** | Postgres (Neon in the cloud, embedded PGlite locally): link DB, cards, documents and code with full-text search. |
-| **L4 · Views** | Knowledge portal: search (copies collapsed per clone group), ticket pages, CR families, repos, code units, sites. |
-| **Operations** | Dashboard, control & configuration console (with change history), job monitor, logs with per-ticket trace, run history, review queue, demo reset. |
+| **L4–L6 · Engineer portal** (`/`) | **Ask** with cited answers and the agent's steps (complete "which sites" lists from the link DB), **Search**, **Functions** pages (every site, revisions, plug-and-play copies, separate re-implementations), **Check before you build** for new CR text, **Code → requirement** (click a line: commit, CR, why, copies elsewhere), ticket pages with **ticket package download** and **feedback** into the review queue. |
+| **Operations** (`/ops/`) | Dashboard, control & configuration console (with change history), job monitor, logs with per-ticket trace, run history, review queue, demo reset. |
 
 ## Run locally
 
@@ -31,7 +31,18 @@ Headless full run (all 383 events, about one minute): `npm run demo`.
 - **Database:** Neon Postgres; the workflow copies the `DATABASE_URL` GitHub secret into a Space secret.
 - **Raw store:** inside the container (`/tmp/sim-data`). After a restart it is rebuilt by replaying the same events, so commit ids stay identical.
 
-## Demo script (about 10 minutes)
+## Demo script (about 15 minutes)
+
+Part 1 – the engineer's view (start here; run the pipeline beforehand so data is there):
+
+1. **Home** → ask *"Which sites have label reprint control?"*: complete list with citations, the hidden GDL copy and the separately built AUS version. Open *How this answer was found*.
+2. Ask *"Why was the reprint limit added?"*: the original reason, the rules and how the function evolved.
+3. **Functions → Label reprint control**: one page per function across all sites.
+4. **Check before you build** → Example 1: the function already exists, so reuse instead of rebuild.
+5. **Code → requirement** → `AMER-HALCYON-ShopfloorExt/modules/label_reprint.py`, click line 15: a commit with no CR traced to CR 118256-01.
+6. Any ticket → **Download ticket package**; report a **Wrong link** and show it arriving in the ops review queue.
+
+Part 2 – how it is kept up to date (`/ops/`):
 
 1. **Control & configuration → Reset demo.** Everything is empty.
 2. **Dashboard → Start all schedulers.** FlexPM events start arriving; L1 and L2 queues fill and drain.

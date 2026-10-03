@@ -7,6 +7,7 @@ import { loadConfig, cfg, setConfig, log, enqueue, DEFAULT_CONFIG, CONFIG_HELP }
 import { schedulers, stopAll, waitIdle } from "./scheduler.js";
 import { simState, resetAll, timeline, ensureStore } from "./sim/runner.js";
 import { storeReady } from "./sim/store.js";
+import { portal } from "./portal.js";
 
 await initDb();
 await loadConfig();
@@ -15,6 +16,7 @@ await ensureStore();
 
 const app = express();
 app.use(express.json());
+app.use(portal);
 app.use(express.static(path.join(ROOT, "public")));
 app.use("/vendor/marked.js", express.static(path.join(ROOT, "node_modules/marked/lib/marked.umd.js")));
 
@@ -206,7 +208,7 @@ app.get("/api/ticket/:task", h(async (req, res) => {
     family: await q("SELECT task, title, state, site FROM tickets WHERE cr=$1 ORDER BY rev", [t.cr]),
     documents: await q("SELECT id, file_name, format, chars, markdown FROM documents WHERE task=$1 ORDER BY file_name", [task]),
     links: await q("SELECT l.*, c.message, c.author, c.committed_at FROM links l LEFT JOIN commits c ON c.sha=l.commit_sha WHERE l.task=$1 ORDER BY l.status, c.committed_at", [task]),
-    similar: await q("SELECT s.task_b task, s.score, t.title, t.site FROM similar_tickets s JOIN tickets t ON t.task=s.task_b WHERE s.task_a=$1 ORDER BY s.score DESC", [task]),
+    similar: await q("SELECT s.task_b task, s.score, t.title, t.site FROM similar_tickets s JOIN tickets t ON t.task=s.task_b WHERE s.task_a=$1 ORDER BY s.score DESC LIMIT 5", [task]),
     review: await q("SELECT id, kind, title, status FROM review_items WHERE task=$1 ORDER BY id DESC", [task]),
   });
 }));

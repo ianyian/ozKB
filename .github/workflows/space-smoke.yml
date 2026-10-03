@@ -34,6 +34,9 @@ jobs:
           assert c["errors1h"] == 0, "errors were logged"
           print("SMOKE OK")
           EOF
+          curl -sf -X POST -H "Content-Type: application/json" "$URL/api/ask" -d '{"q":"Which sites have label reprint control?"}' | python3 -c 'import json,sys; a=json.load(sys.stdin); print("ask:", a["type"], len(a["sources"]), "sources,", [s["tool"] for s in a["steps"]])'
+          curl -sf "$URL/" | grep -q "Shopfloor Knowledge" && echo "portal page OK"
+          curl -sf "$URL/ops/" | grep -q "KB Hub" && echo "ops page OK"
           curl -sf "$URL/api/search?q=label%20reprint" | python3 -c 'import json,sys; r=json.load(sys.stdin)["results"]; print("search:", len(r["cards"]), "cards,", len(r["code"]), "code,", len(r["docs"]), "docs")'
       - name: Reset to a clean demo with default settings
         if: always()

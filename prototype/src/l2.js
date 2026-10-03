@@ -189,6 +189,8 @@ async function similar(t) {
   await q("DELETE FROM similar_tickets WHERE task_a=$1", [t.task]);
   for (const s of top) {
     await q("INSERT INTO similar_tickets (task_a, task_b, score) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING", [t.task, s.task, s.score]);
+    // Store the reverse too, so older tickets learn about newer look-alikes.
+    await q("INSERT INTO similar_tickets (task_a, task_b, score) VALUES ($1,$2,$3) ON CONFLICT (task_a, task_b) DO UPDATE SET score=$3", [s.task, t.task, s.score]);
     const sameCap = await one("SELECT (a.capability = b.capability) same FROM tickets a, tickets b WHERE a.task=$1 AND b.task=$2", [t.task, s.task]);
     if (s.score >= cfg("similar.duplicate_threshold") && s.site !== t.site && !(sameCap && sameCap.same)) {
       // One flag per pair of CR families, not per revision.
