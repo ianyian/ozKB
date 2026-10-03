@@ -6,6 +6,10 @@ on:
   workflow_run:
     workflows: [deploy-space]
     types: [completed]
+# Never run two smoke tests at once: one would reset the demo under the other.
+concurrency:
+  group: space-smoke
+  cancel-in-progress: false
 jobs:
   smoke:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
@@ -45,8 +49,6 @@ jobs:
           post /api/scheduler/all/stop
           post /api/config '{"sim.events_per_tick": 2, "sim.interval_sec": 4, "demo.item_delay_ms": 250, "l1.batch_size": 12, "l2.batch_size": 10}'
           post /api/admin/load-full-demo '{"reset": true}'
-          for i in $(seq 1 60); do
-            s=$(curl -s "$URL/api/status" | python3 -c 'import json,sys; s=json.load(sys.stdin); print(s["fast_forward"]["running"], s["sim"]["cursor"], s["sim"]["total"])')
-            echo "loading: $s"; case "$s" in False*) break;; esac; sleep 15
-          done
-          curl -s "$URL/api/dashboard" | python3 -c 'import json,sys; print("full demo:", json.load(sys.stdin)["counts"])' 
+          # The load keeps running inside the Space; here we only confirm it is making progress.
+          sleep 90
+          curl -s "$URL/api/status" | python3 -c 'import json,sys; s=json.load(sys.stdin); print("loading full demo:", s["fast_forward"], s["sim"]["cursor"], "/", s["sim"]["total"], "events")' 

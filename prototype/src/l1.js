@@ -71,8 +71,8 @@ async function ingestCommits() {
 export async function processBatch(runId) {
   const jobs = await claim("L1", cfg("l1.batch_size"), runId);
   let done = 0, failed = 0;
-  // Jobs touch different files, so up to 4 run in parallel to hide database latency.
-  await pool(jobs, 4, async (job) => {
+  // Jobs touch different files, so up to 8 run in parallel to hide database latency.
+  await pool(jobs, 8, async (job) => {
     const ctx = { runId, jobId: job.id, task: job.task };
     try {
       await sleep(cfg("demo.item_delay_ms"));

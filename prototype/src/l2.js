@@ -26,10 +26,10 @@ export async function processBatch(runId) {
       failed++;
     }
   };
-  // Repo jobs (links, clone groups) run one at a time; card jobs for different tickets run 4 at a time.
+  // Repo jobs (links, clone groups) run one at a time; card jobs for different tickets run 8 at a time.
   for (const job of jobs.filter((j) => j.kind === "repo")) await one(job);
   const cards = jobs.filter((j) => j.kind !== "repo");
-  await Promise.all(Array.from({ length: Math.min(4, cards.length) }, async () => { while (cards.length) await one(cards.shift()); }));
+  await Promise.all(Array.from({ length: Math.min(8, cards.length) }, async () => { while (cards.length) await one(cards.shift()); }));
   return { picked: jobs.length, done, failed };
 }
 

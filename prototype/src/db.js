@@ -14,7 +14,7 @@ export async function initDb() {
   if (impl) return impl;
   if (process.env.DATABASE_URL) {
     const pg = (await import("pg")).default;
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: Number(process.env.PG_POOL_MAX || 5) });
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: Number(process.env.PG_POOL_MAX || 10) });
     impl = {
       query: (sql, params) => pool.query(sql, params),
       exec: (sql) => pool.query(sql),
