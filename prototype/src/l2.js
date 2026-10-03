@@ -12,7 +12,7 @@ const TASK_RE = /(?:FLEXPM|CR)\s*#?(\d{6})-(\d{2})/i;
 export async function processBatch(runId) {
   const jobs = await claim("L2", cfg("l2.batch_size"), runId);
   let done = 0, failed = 0;
-  for (const job of jobs) {
+  const one = async (job) => {
     const ctx = { runId, jobId: job.id, task: job.task };
     try {
       await sleep(cfg("demo.item_delay_ms"));
@@ -25,7 +25,11 @@ export async function processBatch(runId) {
       await log("error", "L2", `Failed ${job.kind} ${job.ref}: ${e.message}`, { stack: String(e.stack).slice(0, 800) }, ctx);
       failed++;
     }
-  }
+  };
+  // Repo jobs (links, clone groups) run one at a time; card jobs for different tickets run 4 at a time.
+  for (const job of jobs.filter((j) => j.kind === "repo")) await one(job);
+  const cards = jobs.filter((j) => j.kind !== "repo");
+  await Promise.all(Array.from({ length: Math.min(4, cards.length) }, async () => { while (cards.length) await one(cards.shift()); }));
   return { picked: jobs.length, done, failed };
 }
 

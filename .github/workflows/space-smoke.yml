@@ -20,7 +20,7 @@ jobs:
           post() { b="$2"; [ -z "$b" ] && b='{}'; curl -sf -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "$b"; echo; }
           for i in $(seq 1 30); do curl -sf "$URL/api/health" && break; sleep 10; done; echo
           post /api/admin/reset
-          post /api/config '{"sim.events_per_tick": 4, "sim.interval_sec": 3, "demo.item_delay_ms": 50, "l1.batch_size": 12}'
+          post /api/config '{"sim.events_per_tick": 4, "sim.interval_sec": 3, "demo.item_delay_ms": 50, "l1.batch_size": 12, "l2.batch_size": 10}'
           post /api/scheduler/all/start > /dev/null
           sleep 180
           post /api/scheduler/all/stop > /dev/null
@@ -40,5 +40,5 @@ jobs:
         run: |
           post() { b="$2"; [ -z "$b" ] && b='{}'; curl -s -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "$b"; echo; }
           post /api/scheduler/all/stop
-          post /api/config '{"sim.events_per_tick": 2, "sim.interval_sec": 4, "demo.item_delay_ms": 250, "l1.batch_size": 12}'
+          post /api/config '{"sim.events_per_tick": 2, "sim.interval_sec": 4, "demo.item_delay_ms": 250, "l1.batch_size": 12, "l2.batch_size": 10}'
           post /api/admin/reset

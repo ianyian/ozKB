@@ -8,7 +8,7 @@ export const DEFAULT_CONFIG = {
   "l1.interval_sec": 3,
   "l1.batch_size": 12,
   "l2.interval_sec": 4,
-  "l2.batch_size": 4,
+  "l2.batch_size": 10,
   "demo.item_delay_ms": 250,
   "link.inferred_threshold": 0.18,
   "clone.variant_threshold": 0.75,
