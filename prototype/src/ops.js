@@ -46,7 +46,9 @@ export async function loadConfig() {
   cache = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   return cache;
 }
-export const cfg = (k) => (cache && k in cache ? cache[k] : DEFAULT_CONFIG[k]);
+// Temporary overrides (used by "Load full demo") that do not touch the saved configuration.
+export const overrides = {};
+export const cfg = (k) => (k in overrides ? overrides[k] : cache && k in cache ? cache[k] : DEFAULT_CONFIG[k]);
 export async function setConfig(key, value, by = "console") {
   if (!(key in DEFAULT_CONFIG)) throw new Error(`Unknown setting ${key}`);
   const def = DEFAULT_CONFIG[key];

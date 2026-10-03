@@ -140,7 +140,9 @@ route("console", {
       <div class="grid g3" id="c-sched"></div>
       <div class="card"><h3>Demo reset</h3>
         <p class="small muted" style="margin:0 0 8px">Clears tickets, cards, links, jobs, logs and runs, deletes the simulated raw store and rewinds the simulator to event 0 with the configured seed. Configuration is kept.</p>
-        <div id="reset-area"><button class="btn danger" id="c-reset">Reset demo…</button></div></div>
+        <div class="row" id="reset-area"><button class="btn danger" id="c-reset">Reset demo…</button>
+          <button class="btn primary" id="c-full">Reset and load full demo</button><span class="small muted" id="ff-state"></span></div>
+        <p class="small muted" style="margin:8px 0 0">Load full demo plays all 383 events (100 tickets) through L1 and L2 at full speed, so the engineer portal has complete data. Watch progress on the Dashboard.</p></div>
       <div class="card"><h3>Configuration <span class="row"><button class="btn primary sm" id="c-save">Save changes</button></span></h3><div class="cfg" id="c-cfg"></div></div>
       <div class="card"><h3>Configuration change history</h3><div class="tbl-wrap" id="c-audit"></div></div>`;
     const s = statusCache || (await api("/api/status"));
@@ -148,6 +150,7 @@ route("console", {
       $("#admin-row").innerHTML = `<input id="adm" type="password" placeholder="Admin password" value="${esc(adminKey())}"><button class="btn sm" id="adm-save">Use</button>`;
       $("#adm-save").onclick = () => { try { sessionStorage.setItem("kbhub-admin", $("#adm").value); } catch {} toast("Admin password set for this browser tab"); };
     }
+    $("#c-full").onclick = async () => { $("#c-full").disabled = true; await post("/api/admin/load-full-demo", { reset: true }); toast("Loading the full demo. Watch the Dashboard."); refreshStatus(); };
     $("#c-reset").onclick = () => {
       $("#reset-area").innerHTML = `<div class="confirm"><b>Reset the whole demo?</b><span class="small">All schedulers stop. This cannot be undone.</span>
         <div class="row"><button class="btn danger" id="c-reset-yes">Yes, reset</button><button class="btn" id="c-reset-no">Cancel</button></div></div>`;
@@ -176,6 +179,8 @@ route("console", {
   },
   async refresh() {
     const [s, j] = await Promise.all([api("/api/status"), api("/api/jobs")]);
+    const ff = s.fast_forward; const fs = $("#ff-state");
+    if (fs) { fs.textContent = ff.running ? `Loading full demo… ${s.sim.cursor}/${s.sim.total} events` : ff.finishedAt ? `Full demo loaded ${fmtT(ff.finishedAt)}${ff.error ? " with error: " + ff.error : ""}` : ""; const b = $("#c-full"); if (b) b.disabled = ff.running; }
     const cnt = (st, status) => (j.counts.find((x) => x.stage === st && x.status === status) || { n: 0 }).n;
     $("#c-sched").innerHTML = s.schedulers.map((x) => {
       const st = x.last_error ? "err" : x.busy ? "busy" : x.running ? "on" : "off";

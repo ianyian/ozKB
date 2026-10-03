@@ -4,7 +4,7 @@ import express from "express";
 import path from "node:path";
 import { initDb, q, one, dbKind, ROOT } from "./db.js";
 import { loadConfig, cfg, setConfig, log, enqueue, DEFAULT_CONFIG, CONFIG_HELP } from "./ops.js";
-import { schedulers, stopAll, waitIdle } from "./scheduler.js";
+import { schedulers, stopAll, waitIdle, fastForward, runFastForward } from "./scheduler.js";
 import { simState, resetAll, timeline, ensureStore } from "./sim/runner.js";
 import { storeReady } from "./sim/store.js";
 import { portal } from "./portal.js";
@@ -35,6 +35,7 @@ app.get("/api/status", h(async (req, res) => {
     db: dbKind, store: storeReady(), admin_required: !!ADMIN, llm: { provider: cfg("llm.provider"), model: cfg("llm.model"), hf_token: !!process.env.HF_TOKEN },
     sim: { seed: s.seed, cursor: s.cursor, total: s.total_events, sim_clock: s.sim_clock, reset_at: s.reset_at },
     schedulers: Object.values(schedulers).map((x) => x.status()),
+    fast_forward: fastForward,
   });
 }));
 
@@ -74,6 +75,13 @@ app.post("/api/admin/reset", guard, h(async (req, res) => {
   stopAll();
   await waitIdle();
   await resetAll(req.body && req.body.by ? String(req.body.by) : "console");
+  res.json({ ok: true });
+}));
+
+app.post("/api/admin/load-full-demo", guard, h(async (req, res) => {
+  if (fastForward.running) return res.status(409).json({ error: "Already loading." });
+  if (req.body && req.body.reset) { stopAll(); await waitIdle(); await resetAll("load full demo"); }
+  runFastForward();
   res.json({ ok: true });
 }));
 

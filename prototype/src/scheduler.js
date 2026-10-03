@@ -1,6 +1,6 @@
 // Minimal scheduler engine: each scheduler runs on its own interval, never overlaps itself,
 // records a row in `runs`, and can be started, stopped or run once from the console.
-import { cfg, startRun, finishRun, log } from "./ops.js";
+import { cfg, startRun, finishRun, log, overrides } from "./ops.js";
 import { simTick } from "./sim/runner.js";
 import * as L1 from "./l1.js";
 import * as L2 from "./l2.js";
@@ -61,4 +61,31 @@ export const schedulers = {
 export const stopAll = () => Object.values(schedulers).forEach((s) => s.stop());
 export async function waitIdle() {
   while (Object.values(schedulers).some((s) => s.busy)) await new Promise((r) => setTimeout(r, 100));
+}
+
+// Load full demo: play the whole timeline through L1 and L2 as fast as possible, in the background.
+export const fastForward = { running: false, startedAt: null, finishedAt: null, error: null };
+export async function runFastForward() {
+  if (fastForward.running) return false;
+  Object.assign(fastForward, { running: true, startedAt: new Date().toISOString(), finishedAt: null, error: null });
+  stopAll();
+  await waitIdle();
+  Object.assign(overrides, { "sim.events_per_tick": 25, "l1.batch_size": 40, "l2.batch_size": 30, "demo.item_delay_ms": 0 });
+  await log("info", "ADMIN", "Load full demo started: playing the whole timeline at full speed");
+  try {
+    for (let guard = 0; guard < 2000; guard++) {
+      const s = await schedulers.SIM.runOnce("fast-forward");
+      const a = await schedulers.L1.runOnce("fast-forward");
+      const b = await schedulers.L2.runOnce("fast-forward");
+      if ((s.finished || !s.done) && !a.picked && !b.picked) break;
+    }
+    await log("info", "ADMIN", "Load full demo finished");
+  } catch (e) {
+    fastForward.error = e.message;
+    await log("error", "ADMIN", `Load full demo failed: ${e.message}`);
+  } finally {
+    for (const k of Object.keys(overrides)) delete overrides[k];
+    Object.assign(fastForward, { running: false, finishedAt: new Date().toISOString() });
+  }
+  return true;
 }

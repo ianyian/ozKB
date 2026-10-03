@@ -38,10 +38,15 @@ jobs:
           curl -sf "$URL/" | grep -q "Shopfloor Knowledge" && echo "portal page OK"
           curl -sf "$URL/ops/" | grep -q "KB Hub" && echo "ops page OK"
           curl -sf "$URL/api/search?q=label%20reprint" | python3 -c 'import json,sys; r=json.load(sys.stdin)["results"]; print("search:", len(r["cards"]), "cards,", len(r["code"]), "code,", len(r["docs"]), "docs")'
-      - name: Reset to a clean demo with default settings
+      - name: Restore default settings and load the full demo
         if: always()
         run: |
           post() { b="$2"; [ -z "$b" ] && b='{}'; curl -s -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "$b"; echo; }
           post /api/scheduler/all/stop
           post /api/config '{"sim.events_per_tick": 2, "sim.interval_sec": 4, "demo.item_delay_ms": 250, "l1.batch_size": 12, "l2.batch_size": 10}'
-          post /api/admin/reset
+          post /api/admin/load-full-demo '{"reset": true}'
+          for i in $(seq 1 60); do
+            s=$(curl -s "$URL/api/status" | python3 -c 'import json,sys; s=json.load(sys.stdin); print(s["fast_forward"]["running"], s["sim"]["cursor"], s["sim"]["total"])')
+            echo "loading: $s"; case "$s" in False*) break;; esac; sleep 15
+          done
+          curl -s "$URL/api/dashboard" | python3 -c 'import json,sys; print("full demo:", json.load(sys.stdin)["counts"])' 
