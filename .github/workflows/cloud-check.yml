@@ -1,0 +1,63 @@
+name: cloud-check
+# Verifies the cloud services the prototype depends on. Prints pass/fail only, never secret values.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/awesome-planck-ug9fj1]
+    paths: [.github/workflows/cloud-check.yml]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Secrets present
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          NEON_AI_GATEWAY_TOKEN: ${{ secrets.NEON_AI_GATEWAY_TOKEN }}
+        run: |
+          for v in DATABASE_URL HF_TOKEN NEON_AI_GATEWAY_TOKEN; do
+            if [ -n "${!v}" ]; then echo "$v: present"; else echo "$v: MISSING"; fi
+          done
+      - name: Neon Postgres
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          npm i pg@8 --silent --no-save >/dev/null
+          node -e '
+            const { Client } = require("pg");
+            const c = new Client({ connectionString: process.env.DATABASE_URL });
+            c.connect().then(() => c.query("select version() v, current_database() db, (select count(*) from pg_available_extensions where name = $1) as has_vector", ["vector"]))
+             .then(r => { const x = r.rows[0]; console.log("Neon OK:", x.db, "|", x.v.split(" ").slice(0,2).join(" "), "| pgvector available:", x.has_vector === "1"); return c.end(); })
+             .catch(e => { console.error("Neon FAILED:", e.message); process.exit(1); });'
+      - name: Hugging Face token
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          curl -sf -H "Authorization: Bearer $HF_TOKEN" https://huggingface.co/api/whoami-v2 > who.json || { echo "HF whoami FAILED"; exit 1; }
+          python3 -c '
+          import json; w=json.load(open("who.json"))
+          print("HF OK: user", w.get("name"))
+          t=(w.get("auth") or {}).get("accessToken") or {}
+          print("token role:", t.get("role"))
+          fg=t.get("fineGrained") or {}
+          print("global scopes:", fg.get("global"))
+          for s in fg.get("scoped") or []: print("scoped:", s.get("entity",{}).get("name"), s.get("permissions"))
+          '
+      - name: Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          curl -s -H "Authorization: Bearer $HF_TOKEN" https://huggingface.co/api/spaces/YianXingJian/ozKB | python3 -c 'import json,sys; s=json.load(sys.stdin); print("Space:", s.get("id"), "| sdk:", s.get("sdk"), "| private:", s.get("private"), "| stage:", (s.get("runtime") or {}).get("stage"))'
+      - name: Hugging Face inference (chat + embeddings)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          for m in "Qwen/Qwen3-32B" "Qwen/Qwen2.5-7B-Instruct" "meta-llama/Llama-3.1-8B-Instruct"; do
+            code=$(curl -s -o chat.json -w "%{http_code}" https://router.huggingface.co/v1/chat/completions \
+              -H "Authorization: Bearer $HF_TOKEN" -H "Content-Type: application/json" \
+              -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with the single word OK.\"}],\"max_tokens\":10}")
+            echo "chat $m -> HTTP $code: $(head -c 200 chat.json)"; echo
+          done
+          code=$(curl -s -o emb.json -w "%{http_code}" https://router.huggingface.co/hf-inference/models/BAAI/bge-m3/pipeline/feature-extraction \
+            -H "Authorization: Bearer $HF_TOKEN" -H "Content-Type: application/json" -d '{"inputs":["label reprint control"]}')
+          echo "embeddings BAAI/bge-m3 -> HTTP $code, bytes $(wc -c < emb.json): $(head -c 120 emb.json)"
