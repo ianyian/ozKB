@@ -50,10 +50,13 @@ export async function scan(ctx) {
 
 async function ingestCommits() {
   const out = execFileSync("git", ["log", "--reverse", "--format=@@%H|%an|%aI|%s", "--name-only", "--", "repos/"], { cwd: SIM_DIR, encoding: "utf8", maxBuffer: 50e6 });
+  // Only new commits cost a database round trip (Neon may be far away from the app).
+  const known = new Set((await q("SELECT sha FROM commits")).map((r) => r.sha));
   let n = 0;
   for (const block of out.split("@@").filter(Boolean)) {
     const [head, ...files] = block.trim().split("\n");
     const [sha, author, at, ...msg] = head.split("|");
+    if (known.has(sha)) continue;
     const fl = files.filter(Boolean);
     const repo = fl[0] ? fl[0].split("/")[1] : null;
     if (!repo) continue;
@@ -68,7 +71,8 @@ async function ingestCommits() {
 export async function processBatch(runId) {
   const jobs = await claim("L1", cfg("l1.batch_size"), runId);
   let done = 0, failed = 0;
-  for (const job of jobs) {
+  // Jobs touch different files, so up to 4 run in parallel to hide database latency.
+  await pool(jobs, 4, async (job) => {
     const ctx = { runId, jobId: job.id, task: job.task };
     try {
       await sleep(cfg("demo.item_delay_ms"));
@@ -81,8 +85,13 @@ export async function processBatch(runId) {
       await log("error", "L1", `Failed ${job.kind} ${job.ref}: ${e.message}`, null, ctx);
       failed++;
     }
-  }
+  });
   return { picked: jobs.length, done, failed };
+}
+
+async function pool(items, n, fn) {
+  const queue = [...items];
+  await Promise.all(Array.from({ length: Math.min(n, queue.length) }, async () => { while (queue.length) await fn(queue.shift()); }));
 }
 
 async function doTicket(job) {

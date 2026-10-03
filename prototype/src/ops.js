@@ -6,7 +6,7 @@ export const DEFAULT_CONFIG = {
   "sim.interval_sec": 4,
   "sim.events_per_tick": 2,
   "l1.interval_sec": 3,
-  "l1.batch_size": 5,
+  "l1.batch_size": 12,
   "l2.interval_sec": 4,
   "l2.batch_size": 4,
   "demo.item_delay_ms": 250,
