@@ -161,19 +161,29 @@ portal.post("/api/ask", h(async (req, res) => {
   const sources = [];
   const cite = (s) => { let i = sources.findIndex((x) => x.key === s.key); if (i < 0) { sources.push(s); i = sources.length - 1; } return `[${i + 1}]`; };
 
-  const type = /^\s*\d{6}(-\d{2})?\s*$/.test(question) ? "lookup"
-    : /\b(which|what|how many|list|where)\b[\s\S]*\b(sites?|plants?|where|else)\b/i.test(question) ? "list"
-    : /\b(code|function|implemented|implementation|repo|source)\b/i.test(question) && !/\bwhy\b/i.test(question) ? "code" : "explain";
-  steps.push({ tool: "classify", input: question, output: `question type: ${type}`, ms: 0 });
+  // A ticket or CR number anywhere in the question pins the answer to that ticket:
+  // "may i know 128605-01 do?", "what is CR 128605", "FLEXPM128605-01".
+  const idm = question.match(/(?:FLEXPM|CR)?\s*#?(?<!\d)(\d{6})(?:-(\d{2}))?(?!\d)/i);
+  const listQ = /\b(which|what|how many|list|where)\b[\s\S]*\b(sites?|plants?|where|else)\b/i.test(question);
+  const codeQ = /\b(code|function|implemented|implementation|repo|source)\b/i.test(question) && !/\bwhy\b/i.test(question);
+  const type = idm ? (listQ ? "list" : codeQ ? "code" : "ticket") : listQ ? "list" : codeQ ? "code" : "explain";
+  steps.push({ tool: "classify", input: question, output: `question type: ${type}${idm ? `, about ${idm[1]}${idm[2] ? "-" + idm[2] : ""}` : ""}`, ms: 0 });
 
-  const terms = question.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !QWORDS.has(w));
+  const terms = question.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !QWORDS.has(w) && !/^\d+$/.test(w));
   let md = "", task = null, capability = null;
 
-  if (type === "lookup") {
-    task = question.trim();
-    const t = await step("get_card", task, async () => { const r = await one("SELECT t.*, c.overview, c.link_confidence FROM tickets t LEFT JOIN cards c USING (task) WHERE t.task=$1 OR (t.cr=$1 AND t.rev=1)", [task]); return { ...r, summary: r ? `card ${r.task}` : "not found" }; });
-    if (!t || !t.task) md = `I could not find ${task} in the knowledge base yet.`;
-    else { task = t.task; md = `**${t.task} ${t.title}** (${t.site}, ${t.state}, link ${t.link_confidence || "none"}) ${cite({ key: `T:${t.task}`, label: `Card ${t.task}`, href: `#/ticket/${t.task}` })}\n\n${stripTags(t.overview || "No card yet.")}`; }
+  if (idm) {
+    const t = await step("query_links", idm[0].trim(), async () => {
+      const r = idm[2] ? await one("SELECT task, cr, capability, title FROM tickets WHERE task=$1", [`${idm[1]}-${idm[2]}`])
+                       : await one("SELECT task, cr, capability, title FROM tickets WHERE cr=$1 ORDER BY rev LIMIT 1", [idm[1]]);
+      return { ...(r || {}), summary: r ? `found ${r.task} ${r.title}` : "no such ticket" };
+    });
+    if (!t.task) md = `I could not find ${idm[0].trim()} in the knowledge base. It may not have been loaded yet; check the ticket number or try **Search**.`;
+    else {
+      task = t.task; capability = t.capability;
+      if (type === "list") md = await answerList(capability, step, cite);
+      else md = await answerExplain(task, capability, step, cite, { ticket: true, codeOnly: type === "code" });
+    }
   } else {
     // Find the capability the question is about.
     const hit = await step("search_kb", terms.join(" "), async () => {
@@ -190,7 +200,7 @@ portal.post("/api/ask", h(async (req, res) => {
       return { rows: r, summary: r.length ? `top: ${r.slice(0, 3).map((x) => `${x.task} (${x.hits}/${words.length} words)`).join(", ")}` : `no card matches ${need} of ${words.length} words` };
     });
     if (!hit.rows || !hit.rows.length) {
-      md = `I found nothing in the knowledge base about "${question}". Try other words, or check whether the function exists under a different name with **Check before you build**.`;
+      md = `I found nothing in the knowledge base about "${question}". Try other words, a ticket number such as 118256-01, or check whether the function exists under a different name with **Check before you build**.`;
     } else {
       capability = hit.rows[0].capability;
       task = hit.rows[0].task;
@@ -253,11 +263,13 @@ async function answerList(capability, step, cite) {
   return md;
 }
 
-async function answerExplain(task, capability, step, cite) {
+async function answerExplain(task, capability, step, cite, opts = {}) {
   const card = await step("get_card", task, async () => {
-    const r = await one("SELECT c.card_md, t.title, t.site, t.cr FROM cards c JOIN tickets t USING (task) WHERE c.task=$1", [task]);
-    return { ...r, summary: `read Overview and Business logic of ${task}` };
+    const r = await one(`SELECT c.card_md, c.link_confidence, t.title, t.site, t.customer, t.state, t.cr, t.rev FROM tickets t LEFT JOIN cards c USING (task) WHERE t.task=$1`, [task]);
+    return { ...(r || {}), summary: r && r.card_md ? `read card ${task}` : `no card for ${task} yet` };
   });
+  const tcite = cite({ key: `T:${task}`, label: `${task} ${card.title}`, href: `#/ticket/${task}` });
+  if (!card.card_md) return `**${task} ${card.title}** (${card.site}, ${card.state}) ${tcite}\n\nL2 has not written a knowledge card for this ticket yet.`;
   const refs = parseRefs(card.card_md);
   const conv = (text) => text.replace(/\[((?:T|A|C)\d+)(?:[^\]]*)\]/g, (_, tag) => {
     const r = refs[tag]; if (!r) return "";
@@ -265,15 +277,34 @@ async function answerExplain(task, capability, step, cite) {
   });
   const overview = section(card.card_md, "# Overview");
   const business = section(card.card_md, "## Business logic");
+  const technical = section(card.card_md, "## Technical logic");
   const family = await step("get_index", `CR family ${card.cr}`, async () => {
     const r = await q("SELECT task, title FROM tickets WHERE cr=$1 ORDER BY rev", [card.cr]);
     return { rows: r, summary: `${r.length} revision(s) in family ${card.cr}` };
   });
-  let md = `${conv(overview)}\n\n**The rules:**\n${conv(business)}\n`;
-  if (family.rows.length > 1) {
-    md += `\n**How it evolved:**\n${family.rows.map((f) => `- ${f.task}: ${f.title.replace(/^[^:]+:\s*/, "")} ${cite({ key: `T:${f.task}`, label: `${f.task} ${f.title}`, href: `#/ticket/${f.task}` })}`).join("\n")}\n`;
+  if (opts.codeOnly) {
+    const links = await step("query_links", task, async () => {
+      const r = await q("SELECT repo, commit_sha, tier, evidence FROM links WHERE task=$1 AND status='active' ORDER BY tier", [task]);
+      return { rows: r, summary: `${r.length} linked commit(s)` };
+    });
+    return `Code for **${task} ${card.title}**, as it was at the linked commit${links.rows.length > 1 ? "s" : ""} ${tcite}:\n\n${conv(technical)}\n\n**How it is linked:**\n${links.rows.map((l) => `- ${l.tier}: ${l.repo} @${(l.commit_sha || "").slice(0, 7)} – ${l.evidence}`).join("\n") || "- No code linked."}`;
   }
-  md += `\nOther sites with this function: ask *"Which sites have ${capTitle(capability).toLowerCase()}?"*`;
+  let md = opts.ticket
+    ? `**${task} ${card.title}** · ${card.site} (${card.customer}) · ${card.state.toLowerCase()} · code link ${card.link_confidence} ${tcite}\n\n**What it does:** ${conv(overview)}\n\n**The rules:**\n${conv(business)}\n`
+    : `${conv(overview)}\n\n**The rules:**\n${conv(business)}\n`;
+  if (opts.ticket) md += `\n**The code (as it was for this revision):**\n${conv(technical)}\n`;
+  if (family.rows.length > 1) {
+    md += `\n**${opts.ticket ? "Revisions" : "How it evolved"}:**\n${family.rows.map((f) => `- ${f.task === task ? `**${f.task}**` : f.task}: ${f.title.replace(/^[^:]+:\s*/, "")} ${cite({ key: `T:${f.task}`, label: `${f.task} ${f.title}`, href: `#/ticket/${f.task}` })}`).join("\n")}\n`;
+  }
+  if (opts.ticket) {
+    const others = await step("which_sites", capability, async () => {
+      const r = await q("SELECT site, string_agg(task, ', ' ORDER BY task) tasks FROM tickets WHERE capability=$1 AND cr<>$2 GROUP BY site ORDER BY site", [capability, card.cr]);
+      return { rows: r, summary: `${r.length} other site(s) with ${capability}` };
+    });
+    if (others.rows.length) md += `\n**Same function at other sites:** ${others.rows.map((o) => `${o.site} (${o.tasks})`).join(", ")}. Ask *"Which sites have ${capTitle(capability).toLowerCase()}?"* for the complete list.`;
+  } else {
+    md += `\nOther sites with this function: ask *"Which sites have ${capTitle(capability).toLowerCase()}?"*`;
+  }
   return md;
 }
 

@@ -36,6 +36,7 @@ async function go() {
 window.addEventListener("hashchange", go);
 
 const EXAMPLES = [
+  "What does 128605-01 do?",
   "Which sites have label reprint control?",
   "Why was the reprint limit added?",
   "Where is the code for tray serial check?",
@@ -95,7 +96,7 @@ route("ask", async (args, params) => {
   const html = md(a.answer).replace(/\[(\d+)\]/g, (_, n) => `<sup class="c"><a href="#src-${n}" data-src="${n}">${n}</a></sup>`);
   $("#ans").innerHTML = `
     <div class="grid side">
-      <div class="panel"><div class="tiny muted" style="margin-bottom:6px">${a.type === "list" ? "List question · answered from the link database" : a.type === "code" ? "Code question" : a.type === "lookup" ? "Ticket lookup" : "Explanation · answered from knowledge cards"} · ${a.mode === "grounded" ? "grounded answer (no model)" : "written by " + esc(a.mode)}</div>
+      <div class="panel"><div class="tiny muted" style="margin-bottom:6px">${a.type === "list" ? "List question · answered from the link database" : a.type === "code" ? "Code question" : a.type === "ticket" ? "Ticket question · answered from its knowledge card" : "Explanation · answered from knowledge cards"} · ${a.mode === "grounded" ? "grounded answer (no model)" : "written by " + esc(a.mode)}</div>
         <div class="answer">${html}</div>
         ${a.capability ? `<p class="small"><a href="#/capability/${a.capability}">Open the ${esc(a.capability_title)} page →</a></p>` : ""}
         <div class="fb" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px"><span class="small muted">Was this helpful?</span>
