@@ -17,7 +17,7 @@ jobs:
       - name: Smoke test
         run: |
           set -e
-          post() { curl -sf -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "${2:-{}}"; echo; }
+          post() { b="$2"; [ -z "$b" ] && b='{}'; curl -sf -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "$b"; echo; }
           for i in $(seq 1 30); do curl -sf "$URL/api/health" && break; sleep 10; done; echo
           post /api/admin/reset
           post /api/config '{"sim.events_per_tick": 6, "sim.interval_sec": 2, "demo.item_delay_ms": 50}'
@@ -38,7 +38,7 @@ jobs:
       - name: Reset to a clean demo with default settings
         if: always()
         run: |
-          post() { curl -s -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "${2:-{}}"; echo; }
+          post() { b="$2"; [ -z "$b" ] && b='{}'; curl -s -X POST -H "Content-Type: application/json" -H "x-admin-key: $KEY" "$URL$1" -d "$b"; echo; }
           post /api/scheduler/all/stop
           post /api/config '{"sim.events_per_tick": 2, "sim.interval_sec": 4, "demo.item_delay_ms": 250}'
           post /api/admin/reset
