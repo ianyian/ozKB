@@ -42,6 +42,7 @@ const EXAMPLES = [
   "Where is the code for tray serial check?",
   "Which sites have moisture tracking for MSL reels?",
   "Why do we check solder paste open time?",
+  "What was developed for customer LUMEN?",
 ];
 
 // ---------------- home ----------------
@@ -186,7 +187,7 @@ route("check", async (args, params) => {
     try {
       const r = await post("/api/check", { text });
       const v = { exists: ["This function probably exists already", "Review the matches below before approving new development. Reusing it with a CR keeps the link visible."], partial: ["Something similar exists", "Parts of this requirement match existing functions. Check whether they can be extended."], new: ["No similar function found", "Nothing in the knowledge base matches closely. This looks like new work."] }[r.verdict];
-      $("#chk-r").innerHTML = `<div class="verdict ${r.verdict}"><b>${v[0]}</b><span>${v[1]}</span></div>
+      $("#chk-r").innerHTML = `<div class="verdict ${r.verdict}"><b>${v[0]}</b><span>${v[1]}</span>${r.short ? `<span class="small">Tip: describe the requirement in a full sentence (what must happen, where, with which limits) for a more reliable check.</span>` : ""}</div>
         ${r.verdict === "new" && r.groups.length ? `<p class="small muted">Weak matches, shown for completeness:</p>` : ""}${r.groups.map((g) => `<div class="panel"><h3><a href="#/capability/${g.capability}">${esc(g.title)}</a> <span class="tiny muted">best match ${g.best.toFixed(2)}</span></h3>
           <div class="sites" style="margin:4px 0 8px">${g.sites.map((s) => `<span class="site">${s}</span>`).join("")}</div>
           ${g.tickets.map((t) => `<div class="small"><a href="#/ticket/${t.task}">${t.task}</a> ${esc(t.title)} <span class="muted">· ${t.site} · ${esc(t.state)} · ${t.score.toFixed(2)}</span> ${tag(t.conf)}</div>`).join("")}</div>`).join("")}`;

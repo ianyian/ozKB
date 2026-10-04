@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import JSZip from "jszip";
 import { q, one } from "./db.js";
 import { cfg, log } from "./ops.js";
-import { tfidf, cosine } from "./text.js";
+import { tfidf, cosine, contentTerms } from "./text.js";
 import { SIM_DIR } from "./sim/store.js";
 import { SITES, CAPABILITIES, DUPLICATES } from "./sim/catalog.js";
 
@@ -64,8 +64,14 @@ portal.post("/api/check", h(async (req, res) => {
   if (text.length < 10) return res.status(400).json({ error: "Describe the requirement in a sentence or two." });
   const all = await q(`SELECT t.task, t.cr, t.title, t.site, t.state, t.capability, t.body_md, coalesce(string_agg(d.markdown, ' '), '') docs, max(c.link_confidence) conf
                        FROM tickets t LEFT JOIN documents d USING (task) LEFT JOIN cards c USING (task) GROUP BY t.task`);
-  const vecs = tfidf([text, ...all.map((x) => `${x.title} ${x.body_md} ${x.docs}`)]);
-  const scored = all.map((x, i) => ({ ...x, score: cosine(vecs[0], vecs[i + 1]) })).filter((x) => x.score > 0.12).sort((a, b) => b.score - a.score);
+  const docsText = all.map((x) => `${x.title} ${x.body_md} ${x.docs}`);
+  const vecs = tfidf([text, ...docsText]);
+  // Short drafts score low on similarity alone, so blend in how many of the draft's key words a ticket covers.
+  const keys = [...new Set(contentTerms(text))];
+  const stem = (w) => w.replace(/(ing|ed|es|s)$/, "");
+  const coverage = (doc) => { if (!keys.length) return 0; const d = doc.toLowerCase(); return keys.filter((k) => d.includes(stem(k))).length / keys.length; };
+  const scored = all.map((x, i) => ({ ...x, score: 0.6 * cosine(vecs[0], vecs[i + 1]) + 0.4 * coverage(docsText[i]) }))
+    .filter((x) => x.score > 0.12).sort((a, b) => b.score - a.score);
   const byCap = new Map();
   for (const x of scored) {
     if (!byCap.has(x.capability)) byCap.set(x.capability, { capability: x.capability, title: capTitle(x.capability), best: x.score, tickets: [], sites: new Set() });
@@ -75,7 +81,9 @@ portal.post("/api/check", h(async (req, res) => {
   }
   const groups = [...byCap.values()].slice(0, 5).map((g) => ({ ...g, sites: [...g.sites] }));
   await log("info", "API", `Check before you build: ${groups.length} similar function(s) for "${text.slice(0, 60)}"`);
-  res.json({ groups, verdict: groups.length && groups[0].best >= 0.35 ? "exists" : groups.length && groups[0].best >= 0.2 ? "partial" : "new" });
+  let verdict = groups.length && groups[0].best >= 0.35 ? "exists" : groups.length && groups[0].best >= 0.2 ? "partial" : "new";
+  if (verdict === "exists" && keys.length < 3) verdict = "partial"; // too little detail to be sure
+  res.json({ groups, verdict, short: keys.length < 3 });
 }));
 
 // ---------------- feedback ----------------
@@ -169,7 +177,11 @@ portal.post("/api/ask", h(async (req, res) => {
   const type = idm ? (listQ ? "list" : codeQ ? "code" : "ticket") : listQ ? "list" : codeQ ? "code" : "explain";
   steps.push({ tool: "classify", input: question, output: `question type: ${type}${idm ? `, about ${idm[1]}${idm[2] ? "-" + idm[2] : ""}` : ""}`, ms: 0 });
 
-  const terms = question.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !QWORDS.has(w) && !/^\d+$/.test(w));
+  // A site, customer or region named in the question ("LUMEN", "BKK", "APAC").
+  const ents = await q("SELECT DISTINCT site AS v, 'site' AS k FROM tickets UNION SELECT DISTINCT customer, 'customer' FROM tickets UNION SELECT DISTINCT region, 'region' FROM tickets");
+  const words = question.toUpperCase().split(/[^A-Z0-9]+/);
+  const entity = ents.find((e) => words.includes(e.v));
+  const terms = contentTerms(question).filter((w) => !entity || w !== entity.v.toLowerCase());
   let md = "", task = null, capability = null;
 
   if (idm) {
@@ -184,20 +196,23 @@ portal.post("/api/ask", h(async (req, res) => {
       if (type === "list") md = await answerList(capability, step, cite);
       else md = await answerExplain(task, capability, step, cite, { ticket: true, codeOnly: type === "code" });
     }
+  } else if (entity && !terms.length) {
+    md = await answerEntity(entity, step, cite);
   } else {
     // Find the capability the question is about.
     const hit = await step("search_kb", terms.join(" "), async () => {
       if (!terms.length) return { summary: "no search terms" };
       const tsq = terms.map((w) => w.replace(/[^a-z0-9]/g, "")).filter(Boolean).join(" | ");
-      const words = tsq.split(" | ");
+      const words2 = tsq.split(" | ");
       // Most of the question's words must appear in the card, so off-topic questions find nothing.
-      const need = Math.max(1, Math.ceil(words.length * 0.6));
+      const need = Math.max(1, Math.ceil(words2.length * 0.5));
       const r = await q(`SELECT * FROM (
                            SELECT c.task, t.capability, t.title, t.cr, ts_rank(c.search, to_tsquery('english', $1)) rank,
                                   (SELECT count(*)::int FROM unnest($2::text[]) w WHERE c.search @@ to_tsquery('english', w)) hits
-                           FROM cards c JOIN tickets t USING (task) WHERE c.search @@ to_tsquery('english', $1)) x
-                         WHERE hits >= $3 ORDER BY hits DESC, rank DESC, task LIMIT 5`, [tsq, words, need]);
-      return { rows: r, summary: r.length ? `top: ${r.slice(0, 3).map((x) => `${x.task} (${x.hits}/${words.length} words)`).join(", ")}` : `no card matches ${need} of ${words.length} words` };
+                           FROM cards c JOIN tickets t USING (task) WHERE c.search @@ to_tsquery('english', $1)
+                             AND ($4::text IS NULL OR t.site=$4 OR t.customer=$4 OR t.region=$4)) x
+                         WHERE hits >= $3 ORDER BY hits DESC, rank DESC, task LIMIT 5`, [tsq, words2, need, entity ? entity.v : null]);
+      return { rows: r, summary: r.length ? `top: ${r.slice(0, 3).map((x) => `${x.task} (${x.hits}/${words2.length} words)`).join(", ")}` : `no card matches ${need} of ${words2.length} words (${words2.join(", ")})` };
     });
     if (!hit.rows || !hit.rows.length) {
       md = `I found nothing in the knowledge base about "${question}". Try other words, a ticket number such as 118256-01, or check whether the function exists under a different name with **Check before you build**.`;
@@ -226,6 +241,24 @@ portal.post("/api/ask", h(async (req, res) => {
   await log("info", "API", `Ask (${type}): "${question}" → ${sources.length} source(s), ${mode}`, { steps: steps.map((s) => s.tool) }, { task });
   res.json({ question, type, answer: md, sources, steps, mode, capability, capability_title: capability ? capTitle(capability) : null, task });
 }));
+
+async function answerEntity(entity, step, cite) {
+  const rows = await step("query_links", `${entity.k} = ${entity.v}`, async () => {
+    const r = await q(`SELECT t.task, t.title, t.site, t.customer, t.capability, t.state, c.link_confidence FROM tickets t LEFT JOIN cards c USING (task)
+                       WHERE t.${entity.k === "site" ? "site" : entity.k === "customer" ? "customer" : "region"} = $1 ORDER BY t.capability, t.task`, [entity.v]);
+    return { rows: r, summary: `${r.length} ticket(s) for ${entity.k} ${entity.v}` };
+  });
+  if (!rows.rows.length) return `No tickets found for ${entity.k} ${entity.v}.`;
+  const byCap = new Map();
+  for (const r of rows.rows) { if (!byCap.has(r.capability)) byCap.set(r.capability, []); byCap.get(r.capability).push(r); }
+  const sites = [...new Set(rows.rows.map((r) => r.site))].join(", ");
+  let md = `**${entity.v}** (${entity.k}) has **${rows.rows.length} ticket(s)** across **${byCap.size} function(s)**${entity.k !== "site" ? ` at ${sites}` : ""}:\n\n`;
+  for (const [cap, list] of byCap) {
+    md += `- **${capTitle(cap)}**: ${list.map((r) => `${r.task} (${r.site}, ${r.state.toLowerCase()}) ${cite({ key: `T:${r.task}`, label: `${r.task} ${r.title}`, href: `#/ticket/${r.task}` })}`).join(", ")}\n`;
+  }
+  md += `\nAsk about any of them, for example *"What does ${rows.rows[0].task} do?"*`;
+  return md;
+}
 
 async function answerList(capability, step, cite) {
   const rows = await step("which_sites", capability, async () => {

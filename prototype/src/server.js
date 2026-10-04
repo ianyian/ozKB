@@ -8,6 +8,7 @@ import { schedulers, stopAll, waitIdle, fastForward, runFastForward } from "./sc
 import { simState, resetAll, timeline, ensureStore } from "./sim/runner.js";
 import { storeReady } from "./sim/store.js";
 import { portal } from "./portal.js";
+import { contentTerms } from "./text.js";
 
 await initDb();
 await loadConfig();
@@ -172,25 +173,37 @@ app.get("/api/search", h(async (req, res) => {
     const t = id[2] ? await one("SELECT task FROM tickets WHERE task=$1", [text]) : await one("SELECT task FROM tickets WHERE cr=$1 ORDER BY rev LIMIT 1", [id[1]]);
     if (t) return res.json({ jump: id[2] ? `#/ticket/${t.task}` : `#/family/${id[1]}` });
   }
-  const p = [text, site];
-  const cards = await q(`SELECT c.task, t.title, t.site, t.state, c.link_confidence, c.overview,
-                           ts_rank(c.search, websearch_to_tsquery('english', $1)) rank,
-                           ts_headline('english', c.overview, websearch_to_tsquery('english', $1), 'MaxWords=40, MinWords=15') snippet
-                         FROM cards c JOIN tickets t USING (task)
-                         WHERE c.search @@ websearch_to_tsquery('english', $1) AND ($2::text IS NULL OR t.site=$2)
-                         ORDER BY rank DESC LIMIT 20`, p);
-  const docs = await q(`SELECT d.task, d.file_name, d.format, ts_headline('english', d.markdown, websearch_to_tsquery('english', $1), 'MaxWords=30, MinWords=10') snippet,
-                          ts_rank(d.search, websearch_to_tsquery('english', $1)) rank
-                        FROM documents d JOIN tickets t USING (task)
-                        WHERE d.search @@ websearch_to_tsquery('english', $1) AND ($2::text IS NULL OR t.site=$2) ORDER BY rank DESC LIMIT 10`, p);
-  // Code: collapse copies to one hit per clone group.
-  const code = await q(`SELECT DISTINCT ON (coalesce(m.group_id, -u.id)) u.id, u.repo, u.path, u.name, u.lang, u.doc, m.group_id,
-                          (SELECT count(*)::int FROM clone_members m2 WHERE m2.group_id = m.group_id) - 1 AS copies,
-                          ts_rank(u.search, plainto_tsquery('simple', $1)) rank
-                        FROM code_units u LEFT JOIN clone_members m ON m.unit_id=u.id
-                        WHERE u.search @@ plainto_tsquery('simple', $1) OR u.name ILIKE '%' || replace($1, ' ', '_') || '%'
-                        ORDER BY coalesce(m.group_id, -u.id), m.role = 'origin' DESC, rank DESC LIMIT 15`, [text]);
-  res.json({ results: { cards, docs, code } });
+  // Match on meaningful words; a result needs at least half of them, ranked by how many it has.
+  const words = [...new Set(contentTerms(text).map((w) => w.replace(/[^a-z0-9]/g, "")).filter(Boolean))];
+  if (!words.length) return res.json({ results: { cards: [], docs: [], code: [] }, words });
+  const orq = words.join(" | ");
+  const need = Math.max(1, Math.ceil(words.length / 2));
+  const p = [orq, site, words, need];
+  const cards = await q(`SELECT * FROM (
+                           SELECT c.task, t.title, t.site, t.state, c.link_confidence, c.overview,
+                             ts_rank(c.search, to_tsquery('english', $1)) rank,
+                             (SELECT count(*)::int FROM unnest($3::text[]) w WHERE c.search @@ to_tsquery('english', w)) hits,
+                             ts_headline('english', c.overview, to_tsquery('english', $1), 'MaxWords=40, MinWords=15') snippet
+                           FROM cards c JOIN tickets t USING (task)
+                           WHERE c.search @@ to_tsquery('english', $1) AND ($2::text IS NULL OR t.site=$2)) x
+                         WHERE hits >= $4 ORDER BY hits DESC, rank DESC LIMIT 20`, p);
+  const docs = await q(`SELECT * FROM (
+                          SELECT d.task, d.file_name, d.format, ts_headline('english', d.markdown, to_tsquery('english', $1), 'MaxWords=30, MinWords=10') snippet,
+                            ts_rank(d.search, to_tsquery('english', $1)) rank,
+                            (SELECT count(*)::int FROM unnest($3::text[]) w WHERE d.search @@ to_tsquery('english', w)) hits
+                          FROM documents d JOIN tickets t USING (task)
+                          WHERE d.search @@ to_tsquery('english', $1) AND ($2::text IS NULL OR t.site=$2)) x
+                        WHERE hits >= $4 ORDER BY hits DESC, rank DESC LIMIT 10`, p);
+  // Code: identifiers are split into words; copies collapse to one hit per clone group.
+  const code = await q(`SELECT * FROM (
+                          SELECT DISTINCT ON (coalesce(m.group_id, -u.id)) u.id, u.repo, u.path, u.name, u.lang, u.doc, m.group_id,
+                            (SELECT count(*)::int FROM clone_members m2 WHERE m2.group_id = m.group_id) - 1 AS copies,
+                            (SELECT count(*)::int FROM unnest($2::text[]) w WHERE u.search @@ to_tsquery('simple', w) OR lower(u.name) LIKE '%' || w || '%') hits
+                          FROM code_units u LEFT JOIN clone_members m ON m.unit_id=u.id
+                          WHERE u.search @@ to_tsquery('simple', $1) OR EXISTS (SELECT 1 FROM unnest($2::text[]) w WHERE lower(u.name) LIKE '%' || w || '%')
+                          ORDER BY coalesce(m.group_id, -u.id), m.role = 'origin' DESC) x
+                        WHERE hits >= $3 ORDER BY hits DESC, name LIMIT 15`, [orq, words, need]);
+  res.json({ results: { cards, docs, code }, words });
 }));
 
 app.get("/api/tickets", h(async (req, res) => {

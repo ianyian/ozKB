@@ -69,3 +69,16 @@ export function cosine(a, b) {
   for (const [w, v] of x) { const u = y.get(w); if (u) s += u * v; }
   return s;
 }
+
+// Words that carry no meaning in questions and search boxes ("which tasks related to ...").
+export const FILLER = new Set(("which what where when who why how many much does do did is are was were the a an of for to in at on and or " +
+  "have has had there any our we us it its this that these those from with by about can could should would may might me my i you your please " +
+  "tell explain show list all know find give get see help need want looking look regarding related relating relevant around " +
+  "site sites plant plants else built build developed develop development done made implemented implement implementation " +
+  "function functions feature features functionality code repo exist exists existing use using used task tasks ticket tickets " +
+  "request requests change changes cr crs mypm customer customers project projects work works anything something thing things").split(" "));
+
+// Meaningful lower-case words of a question or search text.
+export function contentTerms(text) {
+  return String(text || "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !FILLER.has(w) && !/^\d+$/.test(w));
+}
