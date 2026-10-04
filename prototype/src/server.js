@@ -231,6 +231,7 @@ app.get("/api/ticket/:task", h(async (req, res) => {
     links: await q("SELECT l.*, c.message, c.author, c.committed_at FROM links l LEFT JOIN commits c ON c.sha=l.commit_sha WHERE l.task=$1 ORDER BY l.status, c.committed_at", [task]),
     similar: await q("SELECT s.task_b task, s.score, t.title, t.site FROM similar_tickets s JOIN tickets t ON t.task=s.task_b WHERE s.task_a=$1 ORDER BY s.score DESC LIMIT 5", [task]),
     review: await q("SELECT id, kind, title, status FROM review_items WHERE task=$1 ORDER BY id DESC", [task]),
+    tags: await q("SELECT tag, source, evidence FROM card_tags WHERE task=$1 ORDER BY tag", [task]),
   });
 }));
 app.get("/api/family/:cr", h(async (req, res) => {

@@ -8,6 +8,7 @@ import JSZip from "jszip";
 import { q, one } from "./db.js";
 import { cfg, log } from "./ops.js";
 import { tfidf, cosine, contentTerms } from "./text.js";
+import { TAGS, tagText, tagsInQuery } from "./tags.js";
 import { SIM_DIR } from "./sim/store.js";
 import { SITES, CAPABILITIES, DUPLICATES } from "./sim/catalog.js";
 
@@ -32,13 +33,29 @@ portal.get("/api/home", h(async (req, res) => {
   res.json({ counts, capabilities: caps, recent, sites });
 }));
 
+// A function carries a tag when at least a third of its cards do (and two cards once it has three or
+// more), so one ticket that mentions "tray" does not tag the whole function "Packing & shipping".
+async function functionTags() {
+  return q(`SELECT k, tag, n FROM (SELECT t.capability k, ct.tag, count(*)::int n, (SELECT count(*) FROM tickets x WHERE x.capability=t.capability) total
+                                   FROM card_tags ct JOIN tickets t USING (task) GROUP BY 1,2) s
+            WHERE n * 3 >= total AND (n >= 2 OR total < 3) ORDER BY k, n DESC, tag`);
+}
+
 async function capabilitySummary() {
   const rows = await q(`SELECT capability k, count(*)::int tickets, count(DISTINCT site)::int sites, array_agg(DISTINCT site) site_list,
                           count(*) FILTER (WHERE c.link_confidence IN ('confirmed','strong'))::int linked
                         FROM tickets t LEFT JOIN cards c USING (task) GROUP BY capability ORDER BY sites DESC, tickets DESC`);
-  return rows.map((r) => ({ ...r, title: capTitle(r.k), why: CAP[r.k] ? CAP[r.k].why : "" }));
+  const tagRows = await functionTags();
+  const tagsOf = (k) => tagRows.filter((x) => x.k === k).slice(0, 4).map((x) => x.tag);
+  return rows.map((r) => ({ ...r, title: capTitle(r.k), why: CAP[r.k] ? CAP[r.k].why : "", rule: CAP[r.k] ? CAP[r.k].rule : "", tags: tagsOf(r.k) }));
 }
 portal.get("/api/capabilities", h(async (req, res) => res.json(await capabilitySummary())));
+portal.get("/api/tags", h(async (req, res) => {
+  const rows = await q("SELECT tag, count(*)::int cards FROM card_tags GROUP BY tag");
+  const fn = await functionTags();
+  res.json(TAGS.map((x) => ({ tag: x.tag, words: x.words, cards: (rows.find((r) => r.tag === x.tag) || { cards: 0 }).cards,
+    functions: fn.filter((r) => r.tag === x.tag).length })));
+}));
 
 // ---------------- capability page ----------------
 portal.get("/api/capability/:key", h(async (req, res) => {
@@ -54,7 +71,8 @@ portal.get("/api/capability/:key", h(async (req, res) => {
   const repos = await q(`SELECT DISTINCT l.repo FROM links l JOIN tickets t USING (task) WHERE t.capability=$1 AND l.status='active'`, [key]);
   const units = repos.length ? await q(`SELECT u.id, u.repo, u.path, u.name, m.group_id, m.role FROM code_units u LEFT JOIN clone_members m ON m.unit_id=u.id
                                         WHERE u.repo = ANY($1) ORDER BY u.repo, u.path, u.start_line`, [repos.map((r) => r.repo)]) : [];
-  res.json({ key, title: capTitle(key), why: CAP[key] ? CAP[key].why : "", rule: CAP[key] ? CAP[key].rule : "", tickets,
+  const tags = await q("SELECT ct.tag, count(*)::int n FROM card_tags ct JOIN tickets t USING (task) WHERE t.capability=$1 GROUP BY 1 ORDER BY 2 DESC, 1", [key]);
+  res.json({ key, title: capTitle(key), why: CAP[key] ? CAP[key].why : "", rule: CAP[key] ? CAP[key].rule : "", tags, tickets,
     copies: copies.map((c) => ({ ...c, sites: repoSite(c.repo) })), separate, units });
 }));
 
@@ -66,24 +84,39 @@ portal.post("/api/check", h(async (req, res) => {
                        FROM tickets t LEFT JOIN documents d USING (task) LEFT JOIN cards c USING (task) GROUP BY t.task`);
   const docsText = all.map((x) => `${x.title} ${x.body_md} ${x.docs}`);
   const vecs = tfidf([text, ...docsText]);
-  // Short drafts score low on similarity alone, so blend in how many of the draft's key words a ticket covers.
+  // Key words of the draft, weighted by how distinctive they are in the knowledge base (rare words count
+  // more). Words that never appear anywhere still count against a match, so "overtime dashboard" does not
+  // match everything that mentions "operator".
   const keys = [...new Set(contentTerms(text))];
   const stem = (w) => w.replace(/(ing|ed|es|s)$/, "");
-  const coverage = (doc) => { if (!keys.length) return 0; const d = doc.toLowerCase(); return keys.filter((k) => d.includes(stem(k))).length / keys.length; };
-  const scored = all.map((x, i) => ({ ...x, score: 0.6 * cosine(vecs[0], vecs[i + 1]) + 0.4 * coverage(docsText[i]) }))
-    .filter((x) => x.score > 0.12).sort((a, b) => b.score - a.score);
+  const lower = docsText.map((d) => d.toLowerCase());
+  const df = Object.fromEntries(keys.map((k) => [k, lower.filter((d) => d.includes(stem(k))).length]));
+  const idf = (k) => Math.log(1 + all.length / (1 + df[k]));
+  const maxIdf = Math.log(1 + all.length);
+  const weight = (k) => (df[k] ? idf(k) : maxIdf);
+  const totalW = keys.reduce((a, k) => a + weight(k), 0) || 1;
+  const coverage = (d) => keys.filter((k) => df[k] && d.includes(stem(k))).reduce((a, k) => a + idf(k), 0) / totalW;
+  // Tags shared between the draft and a ticket add a small bonus.
+  const draftTags = tagText(text, text).map((x) => x.tag);
+  const tagRows = await q("SELECT task, tag FROM card_tags");
+  const tagMap = new Map(); for (const r of tagRows) { if (!tagMap.has(r.task)) tagMap.set(r.task, []); tagMap.get(r.task).push(r.tag); }
+  const scored = all.map((x, i) => {
+    const shared = (tagMap.get(x.task) || []).filter((tg) => draftTags.includes(tg));
+    return { ...x, shared, score: Math.min(1, 0.35 * cosine(vecs[0], vecs[i + 1]) + 0.65 * coverage(lower[i]) + Math.min(0.1, 0.05 * shared.length)) };
+  }).filter((x) => x.score > 0.15).sort((a, b) => b.score - a.score);
   const byCap = new Map();
   for (const x of scored) {
-    if (!byCap.has(x.capability)) byCap.set(x.capability, { capability: x.capability, title: capTitle(x.capability), best: x.score, tickets: [], sites: new Set() });
+    if (!byCap.has(x.capability)) byCap.set(x.capability, { capability: x.capability, title: capTitle(x.capability), best: x.score, tickets: [], sites: new Set(), tags: new Set() });
     const g = byCap.get(x.capability);
+    x.shared.forEach((tg) => g.tags.add(tg));
     if (g.tickets.length < 4) g.tickets.push({ task: x.task, title: x.title, site: x.site, state: x.state, score: x.score, conf: x.conf });
     g.sites.add(x.site);
   }
-  const groups = [...byCap.values()].slice(0, 5).map((g) => ({ ...g, sites: [...g.sites] }));
+  const groups = [...byCap.values()].slice(0, 5).map((g) => ({ ...g, sites: [...g.sites], tags: [...g.tags] }));
   await log("info", "API", `Check before you build: ${groups.length} similar function(s) for "${text.slice(0, 60)}"`);
-  let verdict = groups.length && groups[0].best >= 0.35 ? "exists" : groups.length && groups[0].best >= 0.2 ? "partial" : "new";
-  if (verdict === "exists" && keys.length < 3) verdict = "partial"; // too little detail to be sure
-  res.json({ groups, verdict, short: keys.length < 3 });
+  let verdict = groups.length && groups[0].best >= 0.45 ? "exists" : groups.length && groups[0].best >= 0.25 ? "partial" : "new";
+  if (verdict === "exists" && keys.length < 2) verdict = "partial"; // too little detail to be sure
+  res.json({ groups, verdict, short: keys.length < 2, keys: keys.map((k) => ({ word: k, known: !!df[k] })), draft_tags: draftTags });
 }));
 
 // ---------------- feedback ----------------
@@ -198,6 +231,10 @@ portal.post("/api/ask", h(async (req, res) => {
     }
   } else if (entity && !terms.length) {
     md = await answerEntity(entity, step, cite);
+  } else if (tagsInQuery(question).length && /\b(functions?|features?|which|list|about|tagged|related)\b/i.test(question)
+             && contentTerms(question).every((w) => tagsInQuery(w).length || (entity && w === entity.v.toLowerCase()))) {
+    // "Which functions are about traceability?" → every function with that tag.
+    md = await answerTag(tagsInQuery(question)[0], entity, step, cite);
   } else {
     // Find the capability the question is about.
     const hit = await step("search_kb", terms.join(" "), async () => {
@@ -214,7 +251,10 @@ portal.post("/api/ask", h(async (req, res) => {
                          WHERE hits >= $3 ORDER BY hits DESC, rank DESC, task LIMIT 5`, [tsq, words2, need, entity ? entity.v : null]);
       return { rows: r, summary: r.length ? `top: ${r.slice(0, 3).map((x) => `${x.task} (${x.hits}/${words2.length} words)`).join(", ")}` : `no card matches ${need} of ${words2.length} words (${words2.join(", ")})` };
     });
-    if (!hit.rows || !hit.rows.length) {
+    const qTags = tagsInQuery(question);
+    if ((!hit.rows || !hit.rows.length) && qTags.length) {
+      md = await answerTag(qTags[0], entity, step, cite);
+    } else if (!hit.rows || !hit.rows.length) {
       md = `I found nothing in the knowledge base about "${question}". Try other words, a ticket number such as 118256-01, or check whether the function exists under a different name with **Check before you build**.`;
     } else {
       capability = hit.rows[0].capability;
@@ -241,6 +281,24 @@ portal.post("/api/ask", h(async (req, res) => {
   await log("info", "API", `Ask (${type}): "${question}" → ${sources.length} source(s), ${mode}`, { steps: steps.map((s) => s.tool) }, { task });
   res.json({ question, type, answer: md, sources, steps, mode, capability, capability_title: capability ? capTitle(capability) : null, task });
 }));
+
+async function answerTag(tag, entity, step, cite) {
+  const rows = await step("query_links", `tag = ${tag}${entity ? `, ${entity.k} = ${entity.v}` : ""}`, async () => {
+    const r = await q(`SELECT t.task, t.title, t.site, t.capability, t.state FROM card_tags ct JOIN tickets t USING (task)
+                       WHERE ct.tag=$1 AND ($2::text IS NULL OR t.site=$2 OR t.customer=$2 OR t.region=$2) ORDER BY t.capability, t.task`, [tag, entity ? entity.v : null]);
+    return { rows: r, summary: `${r.length} card(s) tagged ${tag}` };
+  });
+  if (!rows.rows.length) return `No knowledge cards are tagged **${tag}**${entity ? ` for ${entity.v}` : ""} yet.`;
+  const strong = new Set((await functionTags()).filter((x) => x.tag === tag).map((x) => x.k));
+  const byCap = new Map();
+  for (const r of rows.rows.filter((x) => strong.has(x.capability))) { if (!byCap.has(r.capability)) byCap.set(r.capability, []); byCap.get(r.capability).push(r); }
+  if (!byCap.size) return `Only a few single tickets mention **${tag}**; no function is mainly about it. Try Search instead.`;
+  let md = `**${byCap.size} function(s)** are tagged **${tag}**${entity ? ` for ${entity.v}` : ""}:\n\n`;
+  for (const [cap, list] of byCap) {
+    md += `- **${capTitle(cap)}** at ${[...new Set(list.map((r) => r.site))].join(", ")}: ${list.slice(0, 4).map((r) => `${r.task} ${cite({ key: `T:${r.task}`, label: `${r.task} ${r.title}`, href: `#/ticket/${r.task}` })}`).join(", ")}${list.length > 4 ? ` and ${list.length - 4} more` : ""}\n`;
+  }
+  return md;
+}
 
 async function answerEntity(entity, step, cite) {
   const rows = await step("query_links", `${entity.k} = ${entity.v}`, async () => {

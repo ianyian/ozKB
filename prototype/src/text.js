@@ -76,7 +76,9 @@ export const FILLER = new Set(("which what where when who why how many much does
   "tell explain show list all know find give get see help need want looking look regarding related relating relevant around " +
   "site sites plant plants else built build developed develop development done made implemented implement implementation " +
   "function functions feature features functionality code repo exist exists existing use using used task tasks ticket tickets " +
-  "request requests change changes cr crs mypm customer customers project projects work works anything something thing things").split(" "));
+  "request requests change changes cr crs mypm customer customers project projects work works anything something thing things " +
+  "like would let then so can reference refer similar same new add adding create creating make making want wanted plan planning " +
+  "also just only some other others there here them they will shall let's lets i'd i'm").split(" "));
 
 // Meaningful lower-case words of a question or search text.
 export function contentTerms(text) {

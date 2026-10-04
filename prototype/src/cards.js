@@ -7,6 +7,7 @@ import { q, one } from "./db.js";
 import { cfg, log } from "./ops.js";
 import { SIM_DIR } from "./sim/store.js";
 import { parsePython, parseJs } from "./l1.js";
+import { tagText } from "./tags.js";
 
 const TIER_ORDER = ["confirmed", "strong", "inferred"];
 
@@ -100,18 +101,23 @@ export async function writeCard(t, sims, ctx) {
     ...C.map((u) => `[${u.tag}] ${u.repo}/${u.path} L${u.start_line}-${u.end_line} @${(u.commit_sha || "").slice(0, 7)}`),
   ].map((r) => `- ${r}`).join("\n");
 
+  // Function tags from a controlled vocabulary, with the words that triggered them as evidence.
+  const tagSource = [t.title, t.body_md, ...docs.map((d) => d.markdown), ...units.map((u) => `${u.name} ${u.doc || ""}`)].join("\n");
+  const tags = tagText(tagSource, t.title);
   const fm = [
     "---", `ticket: ${t.task}`, `cr_family: ${t.cr}`, `revision: ${String(t.rev).padStart(2, "0")}`, `title: ${t.title}`, `project: ${t.project}`,
     `site: ${t.site}`, `customer: ${t.customer}`, `region: ${t.region}`, `state: ${t.state}`, `owner: ${t.owner}`,
     `previous_revision: ${prev ? prev.task : ""}`, `repos: [${repos.join(", ")}]`, `commits: [${links.map((l) => (l.commit_sha || "").slice(0, 7)).filter(Boolean).join(", ")}]`,
-    `link_confidence: ${best}`, `template_version: ${cfg("card.template_version")}`, `model: ${model}`, "---",
+    `tags: [${tags.map((x) => x.tag).join(", ")}]`, `link_confidence: ${best}`, `template_version: ${cfg("card.template_version")}`, `model: ${model}`, "---",
   ].join("\n");
   const md = `${fm}\n\n# Overview\n${overview}\n\n## Business logic\n${business || "Not stated in the sources."}\n\n## Technical logic\n${technical}\n\n## Variants & reuse\n${variants}\n\n## Change history\n${history}\n\n## Gaps & confidence\n${gaps}\n\n## References\n${refs}\n`;
 
+  await q("DELETE FROM card_tags WHERE task=$1 AND source<>'expert'", [t.task]);
+  for (const x of tags) await q("INSERT INTO card_tags (task, tag, source, evidence) VALUES ($1,$2,'rule',$3) ON CONFLICT DO NOTHING", [t.task, x.tag, x.evidence.join(", ")]);
   const cur = await one("SELECT version, card_md, status FROM cards WHERE task=$1", [t.task]);
   if (cur && cur.card_md === md) return { unchanged: true, version: cur.version };
   const version = cur ? cur.version + 1 : 1;
-  const searchText = `${t.task} ${t.title} ${overview} ${business} ${technical} ${t.site} ${t.customer}`;
+  const searchText = `${t.task} ${t.title} ${overview} ${business} ${technical} ${t.site} ${t.customer} ${tags.map((x) => x.tag).join(" ")}`;
   await q(`INSERT INTO cards (task, version, template_version, card_md, overview, link_confidence, status, model, tokens_in, tokens_out, generated_at, search)
            VALUES ($1,$2,$3,$4,$5,$6,'generated',$7,$8,$9, now(), to_tsvector('english', $10))
            ON CONFLICT (task) DO UPDATE SET version=$2, template_version=$3, card_md=$4, overview=$5, link_confidence=$6,

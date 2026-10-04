@@ -43,6 +43,7 @@ const EXAMPLES = [
   "Which sites have moisture tracking for MSL reels?",
   "Why do we check solder paste open time?",
   "What was developed for customer LUMEN?",
+  "Which functions are about traceability?",
 ];
 
 // ---------------- home ----------------
@@ -69,7 +70,8 @@ route("", async () => {
     </section>`;
   bindAskBox();
 });
-const capTile = (c) => `<a class="cap" href="#/capability/${c.k}"><b>${esc(c.title)}</b><span class="why">${esc(c.why ? c.why.charAt(0).toUpperCase() + c.why.slice(1) + "." : "")}</span><div class="sites">${c.site_list.map((s) => `<span class="site">${s}</span>`).join("")}</div><span class="tiny muted">${c.tickets} ticket(s)</span></a>`;
+const tagChips = (tags) => (tags && tags.length ? `<div class="sites">${tags.map((t) => `<span class="ftag">${esc(t)}</span>`).join("")}</div>` : "");
+const capTile = (c) => `<a class="cap" href="#/capability/${c.k}"><b>${esc(c.title)}</b><span class="why">${esc(c.why ? c.why.charAt(0).toUpperCase() + c.why.slice(1) + "." : "")}</span>${tagChips(c.tags)}<div class="sites">${c.site_list.map((s) => `<span class="site">${s}</span>`).join("")}</div><span class="tiny muted">${c.tickets} ticket(s)</span></a>`;
 
 function askBox(value, mode = "ask") {
   return `<form class="askbox" id="askbox">
@@ -132,10 +134,30 @@ route("search", async (args, params) => {
 });
 
 // ---------------- functions ----------------
-route("capabilities", async () => {
-  const caps = await api("/api/capabilities");
-  view.innerHTML = `<div><h1>Functions</h1><p class="lede">Every shopfloor function in the knowledge base and the sites where it was requested or found.</p></div>
-    <div class="caps">${caps.map(capTile).join("") || `<div class="empty">Nothing yet.</div>`}</div>`;
+route("capabilities", async (args, params) => {
+  const [caps, tags] = await Promise.all([api("/api/capabilities"), api("/api/tags")]);
+  const sites = [...new Set(caps.flatMap((c) => c.site_list))].sort();
+  const state = { text: params.get("q") || "", tag: params.get("tag") || "", site: "" };
+  view.innerHTML = `<div><h1>Functions</h1><p class="lede">Every shopfloor function in the knowledge base, its tags and the sites where it was requested or found. Tags are assigned to each knowledge card when it is written.</p></div>
+    <div class="panel fbar">
+      <input id="fn-q" placeholder="Filter functions, e.g. feeder, label, packing, BKK…" value="${esc(state.text)}" aria-label="Filter functions">
+      <select id="fn-site" aria-label="Site"><option value="">All sites</option>${sites.map((s) => `<option>${s}</option>`).join("")}</select>
+      <div class="chips" id="fn-tags"><button class="chip ${state.tag ? "" : "on"}" data-tag="">All tags</button>${tags.filter((t) => t.functions).map((t) => `<button class="chip ${state.tag === t.tag ? "on" : ""}" data-tag="${esc(t.tag)}">${esc(t.tag)} <span class="muted tiny">${t.functions}</span></button>`).join("")}</div>
+    </div>
+    <p class="small muted" id="fn-count"></p><div class="caps" id="fn-list"></div>`;
+  const draw = () => {
+    const words = state.text.toLowerCase().split(/\s+/).filter(Boolean);
+    const list = caps.filter((c) => {
+      const hay = `${c.title} ${c.why} ${c.rule} ${c.tags.join(" ")} ${c.site_list.join(" ")} ${c.k}`.toLowerCase();
+      return words.every((w) => hay.includes(w)) && (!state.tag || c.tags.includes(state.tag)) && (!state.site || c.site_list.includes(state.site));
+    });
+    $("#fn-count").textContent = `${list.length} of ${caps.length} functions`;
+    $("#fn-list").innerHTML = list.map(capTile).join("") || `<div class="empty">No function matches. Try fewer words, or <a href="#/check?text=${encodeURIComponent(state.text)}">check the requirement</a> instead.</div>`;
+  };
+  $("#fn-q").oninput = (e) => { state.text = e.target.value; draw(); };
+  $("#fn-site").onchange = (e) => { state.site = e.target.value; draw(); };
+  $$("#fn-tags [data-tag]").forEach((b) => (b.onclick = () => { state.tag = b.dataset.tag; $$("#fn-tags .chip").forEach((x) => x.classList.toggle("on", x === b)); draw(); }));
+  draw();
 });
 route("capability", async ([key]) => {
   const d = await api(`/api/capability/${key}`);
@@ -148,6 +170,7 @@ route("capability", async ([key]) => {
   view.innerHTML = `
     <div><div class="small muted"><a href="#/capabilities">Functions</a> /</div><h1>${esc(d.title)}</h1>
       <p class="lede">${esc(d.rule)}. Built because ${esc(d.why)}.</p>
+      ${d.tags && d.tags.length ? `<div class="sites" style="margin-top:8px">${d.tags.map((t) => `<a class="ftag" href="#/capabilities?tag=${encodeURIComponent(t.tag)}">${esc(t.tag)}</a>`).join("")}</div>` : ""}
       <div class="chips" style="margin-top:10px"><a class="btn sm" href="#/ask?q=${encodeURIComponent("Why was " + d.title.toLowerCase() + " built?")}">Ask why it was built</a><a class="btn sm" href="#/ask?q=${encodeURIComponent("Which sites have " + d.title.toLowerCase() + "?")}">Ask which sites have it</a></div></div>
     <div class="panel"><h2>Where it runs</h2><p class="small muted" style="margin-top:-4px">${Object.keys(bySite).length} site(s) with a change request${Object.keys(copySites).filter((s) => !bySite[s]).length ? `, plus ${Object.keys(copySites).filter((s) => !bySite[s]).length} with only a copy and no CR` : ""}${d.copies.length ? ` · ${d.copies.length} plug-and-play cop${d.copies.length > 1 ? "ies" : "y"} found in code` : ""} · ${fams.length} CR famil${fams.length > 1 ? "ies" : "y"}</p>
       <div class="sitegrid">${Object.entries(bySite).map(([s, list]) => `<div class="sitecol"><h3><span>${s}</span>${tag(best(list))}</h3><span class="tiny muted">${esc(list[0].customer)} · ${list[0].region}</span>
@@ -187,9 +210,10 @@ route("check", async (args, params) => {
     try {
       const r = await post("/api/check", { text });
       const v = { exists: ["This function probably exists already", "Review the matches below before approving new development. Reusing it with a CR keeps the link visible."], partial: ["Something similar exists", "Parts of this requirement match existing functions. Check whether they can be extended."], new: ["No similar function found", "Nothing in the knowledge base matches closely. This looks like new work."] }[r.verdict];
-      $("#chk-r").innerHTML = `<div class="verdict ${r.verdict}"><b>${v[0]}</b><span>${v[1]}</span>${r.short ? `<span class="small">Tip: describe the requirement in a full sentence (what must happen, where, with which limits) for a more reliable check.</span>` : ""}</div>
+      $("#chk-r").innerHTML = `<div class="verdict ${r.verdict}"><b>${v[0]}</b><span>${v[1]}</span>${r.short ? `<span class="small">Tip: describe the requirement in a full sentence (what must happen, where, with which limits) for a more reliable check.</span>` : ""}
+        <span class="tiny">Compared on: ${r.keys.map((k) => k.known ? `<b>${esc(k.word)}</b>` : `<s title="not found anywhere in the knowledge base">${esc(k.word)}</s>`).join(", ") || "—"}${r.draft_tags.length ? ` · tags: ${r.draft_tags.map(esc).join(", ")}` : ""}</span></div>
         ${r.verdict === "new" && r.groups.length ? `<p class="small muted">Weak matches, shown for completeness:</p>` : ""}${r.groups.map((g) => `<div class="panel"><h3><a href="#/capability/${g.capability}">${esc(g.title)}</a> <span class="tiny muted">best match ${g.best.toFixed(2)}</span></h3>
-          <div class="sites" style="margin:4px 0 8px">${g.sites.map((s) => `<span class="site">${s}</span>`).join("")}</div>
+          <div class="sites" style="margin:4px 0 8px">${g.sites.map((s) => `<span class="site">${s}</span>`).join("")}${g.tags.map((t) => `<span class="ftag" title="Tag shared with your requirement">${esc(t)}</span>`).join("")}</div>
           ${g.tickets.map((t) => `<div class="small"><a href="#/ticket/${t.task}">${t.task}</a> ${esc(t.title)} <span class="muted">· ${t.site} · ${esc(t.state)} · ${t.score.toFixed(2)}</span> ${tag(t.conf)}</div>`).join("")}</div>`).join("")}`;
     } catch (err) { $("#chk-r").innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
   };
@@ -208,6 +232,7 @@ route("ticket", async ([task], params) => {
     <div class="grid side">
       <div class="panel"><div class="tabs" id="tabs"><button data-t="card">Knowledge card</button><button data-t="sources">Sources (${d.documents.length + 1})</button><button data-t="code">Code (${d.links.length})</button><button data-t="history">History</button></div><div id="tab"></div></div>
       <div class="grid">
+        ${d.tags && d.tags.length ? `<div class="panel"><h3>Tags</h3><div class="sites">${d.tags.map((t) => `<a class="ftag" href="#/capabilities?tag=${encodeURIComponent(t.tag)}" title="${esc(t.source)}: ${esc(t.evidence || "")}">${esc(t.tag)}</a>`).join("")}</div><p class="tiny muted" style="margin:6px 0 0">Assigned when the card was written. Hover a tag to see the words that triggered it.</p></div>` : ""}
         <div class="panel"><h3>At a glance</h3><dl class="kv"><dt>Project</dt><dd>${esc(t.project)}</dd><dt>Owner</dt><dd>${esc(t.owner)}</dd><dt>Created</dt><dd>${fmtD(t.created)}</dd><dt>Required</dt><dd>${fmtD(t.required)}</dd><dt>Card</dt><dd>${c ? `v${c.version} · ${esc(c.status)} · ${fmtD(c.generated_at)}` : "not yet"}</dd></dl></div>
         <div class="panel"><h3>Revisions</h3>${d.family.map((f) => `<div class="small">${f.task === t.task ? `<b>${f.task}</b>` : `<a href="#/ticket/${f.task}">${f.task}</a>`} ${esc(f.title.replace(/^[^:–]+[:–]\s*/, ""))}</div>`).join("")}</div>
         <div class="panel"><h3>Similar at other sites</h3>${d.similar.map((s) => `<div class="small"><a href="#/ticket/${s.task}">${s.task}</a> ${esc(s.title)} <span class="muted">${s.site}</span></div>`).join("") || `<span class="small muted">None found.</span>`}</div>

@@ -144,3 +144,11 @@ pre.doc { background: var(--code-bg); padding: 12px; border-radius: 8px; overflo
 .thinking i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: p 1s infinite alternate; }
 @keyframes p { from { opacity: .3; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .thinking i { animation: none; } }
+
+.ftag { font: 500 11.5px var(--f-b); padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+a.ftag:hover { text-decoration: none; filter: brightness(1.1); }
+.fbar { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.fbar .chips { grid-column: 1 / -1; }
+.fbar input, .fbar select { font: 16px var(--f-b); padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); min-width: 0; }
+.chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+@media (max-width: 600px) { .fbar { grid-template-columns: minmax(0, 1fr); } }

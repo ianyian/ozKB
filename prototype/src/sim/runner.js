@@ -50,7 +50,7 @@ export async function simTick(runId) {
 
 export async function resetAll(by = "console") {
   await q(`TRUNCATE jobs, logs, runs, source_files, tickets, ticket_versions, documents, commits, code_units, links,
-           clone_groups, clone_members, cards, card_history, similar_tickets, review_items, sim_state RESTART IDENTITY`);
+           clone_groups, clone_members, cards, card_history, card_tags, similar_tickets, review_items, sim_state RESTART IDENTITY`);
   resetStore();
   const seed = cfg("sim.seed");
   await q("INSERT INTO sim_state (id, seed, cursor, total_events) VALUES (1, $1, 0, $2)", [seed, timeline(seed).events.length]);

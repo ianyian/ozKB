@@ -195,6 +195,14 @@ CREATE TABLE IF NOT EXISTS card_history (
   generated_at  timestamptz NOT NULL,
   PRIMARY KEY (task, version)
 );
+CREATE TABLE IF NOT EXISTS card_tags (
+  task      text NOT NULL,
+  tag       text NOT NULL,
+  source    text NOT NULL DEFAULT 'rule',   -- rule | llm | expert
+  evidence  text,
+  PRIMARY KEY (task, tag)
+);
+CREATE INDEX IF NOT EXISTS card_tags_tag ON card_tags (tag);
 CREATE TABLE IF NOT EXISTS similar_tickets (
   task_a  text NOT NULL,
   task_b  text NOT NULL,
