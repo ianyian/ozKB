@@ -1,4 +1,4 @@
-# Shopfloor KB Hub — Project Profile
+# Shopfloor KB Hub — Project Profile 
 
 > Status: POC planning · Last updated: 2026-10-01
 > Purpose of this file: single source of truth for the project background, requirements, decisions and architecture. Read this first before any design or implementation work.
