@@ -1,5 +1,5 @@
 name: cloud-check
-# Verifies the cloud services the prototype depends on. Prints pass/fail only, never secret values.
+# Verifies the cloud services the prototype depends on. Prints pass/fail only, never secret values. 
 on:
   workflow_dispatch:
   push:
