@@ -2,7 +2,7 @@
 
 > Full feature description, configuration, deployment and API: see the [project README](../README.md).
 
-A working mini version of the Shopfloor KB Hub proposal (`docs/project-profile.md`):
+A working mini version of the Shopfloor KB Hub proposal (`docs/project-profile.md`): 
 
 | Layer | In this prototype |
 |---|---|
