@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "reset": "node src/cli.js reset",
-    "demo": "node src/cli.js demo"
+    "demo": "node src/cli.js demo" 
   },
   "engines": {
     "node": ">=20"
