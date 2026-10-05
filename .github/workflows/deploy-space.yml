@@ -1,6 +1,6 @@
 name: deploy-space
 # Deploys prototype/ to the Hugging Face Space as a Docker app, wired to Neon via DATABASE_URL.
-# Secret values are copied from GitHub secrets into Space secrets; they are never printed.
+# Secret values are copied from GitHub secrets into Space secrets; they are never printed. 
 on:
   workflow_dispatch:
   push:
